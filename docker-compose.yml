@@ -37,8 +37,8 @@ services:
     # Настройки по умолчанию. Любое из значений можно изменить, создав
     # рядом файл .env.docker, скопированный из .env.docker.example,
     # и раскомментировав строку env_file ниже.
-    # env_file:
-    #   - .env.docker
+    env_file:
+      - .env.docker
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -51,15 +51,15 @@ services:
 
       # Отправка почты: письма принимает перехватчик mailpit.
       # Для реальной отправки укажите настройки своего почтового сервера.
-      MAIL_TRANSPORT: smtp
-      MAIL_FROM: no-reply@pvh.local
+      # MAIL_TRANSPORT: smtp
+      # MAIL_FROM: no-reply@pvh.local
       MAIL_FROM_NAME: "Сервис трекинга заказов и инвентаря для ПВЗ"
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      SMTP_SECURE: "false"
-      SMTP_REQUIRE_TLS: "false"
-      SMTP_USER: ""
-      SMTP_PASSWORD: ""
+      # SMTP_HOST: mailpit
+      # SMTP_PORT: 1025
+      # SMTP_SECURE: "false"
+      # SMTP_REQUIRE_TLS: "false"
+      # SMTP_USER: ""
+      # SMTP_PASSWORD: ""
       MAIL_CONFIRM_TTL_HOURS: 24
 
       # Учётная запись администратора создаётся при первом запуске
