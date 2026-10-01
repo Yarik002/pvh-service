@@ -19,6 +19,7 @@ const AppError = require('./utils/AppError');
 const requestLogger = require('./middleware/requestLogger');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const healthRouter = require('./routes/health');
+const authRouter = require('./routes/auth');
 
 /**
  * Создаёт и настраивает экземпляр приложения.
@@ -58,7 +59,11 @@ function createApp() {
   // Основной эндпоинт приёмки сборки v0.1: GET /health
   app.use('/health', healthRouter);
 
-  // Корневой маршрут: краткая справка о сервисе
+  // --- REST API --------------------------------------------------------
+  // Маршруты аутентификации: регистрация, подтверждение Email, вход
+  app.use('/api/auth', authRouter);
+
+  // Корневой маршрут: краткая справка о сервисе и перечень разделов API
   app.get('/', (req, res) => {
     res.status(200).json({
       success: true,
@@ -70,17 +75,22 @@ function createApp() {
         health: 'GET /health — состояние сервера и базы данных',
         healthLive: 'GET /health/live — проверка живости процесса',
         healthReady: 'GET /health/ready — проверка готовности сервиса',
-        api: 'REST API приложения — разделы появятся с 3-го дня разработки (префикс /api)',
+        register: 'POST /api/auth/register — регистрация нового пользователя',
       },
+      planned: [
+        'GET /api/auth/confirm — подтверждение адреса электронной почты (6-й день)',
+        'POST /api/auth/login — вход в систему (7-й день)',
+        'GET /api/cells — управление ячейками хранения (12-й день)',
+        'POST /api/orders — приёмка заказа (14-й день)',
+      ],
       timestamp: new Date().toISOString(),
     });
   });
 
-  // --- Заглушка будущего REST API --------------------------------------
-  // Начиная с 3-го дня здесь будут подключаться маршруты /api/auth, /api/orders,
-  // /api/cells и другие. Сейчас префикс объявлен, но не содержит обработчиков.
+  // --- Несуществующие разделы API --------------------------------------
+  // Обработчик срабатывает для путей /api/*, не перехваченных выше
   app.use('/api', (req, res, next) => {
-    next(AppError.notFound(`Раздел API ${req.originalUrl} ещё не реализован (сборка v0.1)`));
+    next(AppError.notFound(`Раздел API ${req.method} ${req.originalUrl} не существует`));
   });
 
   // --- Обработка ошибок (всегда последними) ----------------------------

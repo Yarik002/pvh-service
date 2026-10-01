@@ -49,6 +49,11 @@ class AppError extends Error {
     return new AppError(message, 409, 'CONFLICT', details);
   }
 
+  /** 429 — превышена частота запросов */
+  static tooManyRequests(message = 'Слишком много запросов') {
+    return new AppError(message, 429, 'TOO_MANY_REQUESTS');
+  }
+
   /** 503 — сервис временно недоступен */
   static unavailable(message = 'Сервис временно недоступен') {
     return new AppError(message, 503, 'SERVICE_UNAVAILABLE');

@@ -1,0 +1,329 @@
+{
+  "info": {
+    "_postman_id": "a7c3e1f2-4b8d-4e21-9c6a-1f0d2b7e5a34",
+    "name": "ПВЗ — API регистрации (день 3)",
+    "description": "Коллекция запросов для проверки API регистрации пользователей (3-й день учебной практики).\n\nПорядок работы:\n1. Запустить сервер: npm start\n2. Выбрать окружение «ПВЗ — локальный сервер» (переменная baseUrl)\n3. Выполнять запросы по порядку: успешная регистрация, затем проверки ошибок.\n\nПримечание: адрес электронной почты в запросах формируется с меткой времени, чтобы повторный запуск коллекции не упирался в проверку уникальности.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000",
+      "type": "string"
+    },
+    {
+      "key": "uniqueEmail",
+      "value": "student@mail.ru",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "parol12345",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Регистрация — успешный сценарий (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Ответ содержит success = true', function () {",
+              "    pm.expect(pm.response.json().success).to.eql(true);",
+              "});",
+              "",
+              "pm.test('Пользователь создан с ролью client', function () {",
+              "    const user = pm.response.json().user;",
+              "    pm.expect(user.role).to.eql('client');",
+              "    pm.expect(user.email).to.eql(pm.variables.get('uniqueEmail'));",
+              "});",
+              "",
+              "pm.test('Статус аккаунта — не подтверждён', function () {",
+              "    pm.expect(pm.response.json().user.isConfirmed).to.eql(false);",
+              "});",
+              "",
+              "pm.test('Хеш пароля не возвращается клиенту', function () {",
+              "    pm.expect(pm.response.json().user).to.not.have.property('passwordHash');",
+              "    pm.expect(pm.response.text()).to.not.include(pm.variables.get('password'));",
+              "});",
+              "",
+              "// Сохраняем идентификатор созданного пользователя",
+              "pm.collectionVariables.set('userId', pm.response.json().user.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Иванов Иван\",\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"{{password}}\",\n  \"passwordConfirm\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Регистрация нового пользователя. Ожидаемый ответ — 201 Created."
+      }
+    },
+    {
+      "name": "2. Повторная регистрация того же Email (409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 409 Conflict', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test('Код ошибки CONFLICT', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('CONFLICT');",
+              "});",
+              "",
+              "pm.test('Сообщение об ошибке понятно пользователю', function () {",
+              "    pm.expect(pm.response.json().error.message).to.include('уже зарегистрирован');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Петров Пётр\",\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"{{password}}\",\n  \"passwordConfirm\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Проверка ограничения «регистрация повторно на один и тот же Email запрещена» (ТЗ, п. 3.3)."
+      }
+    },
+    {
+      "name": "3. Пустая форма — все поля обязательны (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Ошибки перечислены по каждому полю', function () {",
+              "    const details = pm.response.json().error.details;",
+              "    pm.expect(details).to.have.property('name');",
+              "    pm.expect(details).to.have.property('email');",
+              "    pm.expect(details).to.have.property('password');",
+              "    pm.expect(details).to.have.property('passwordConfirm');",
+              "});",
+              "",
+              "pm.test('Код ошибки обязательного поля — REQUIRED', function () {",
+              "    pm.expect(pm.response.json().error.details.name.code).to.eql('REQUIRED');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Проверка обязательности заполнения полей формы регистрации."
+      }
+    },
+    {
+      "name": "4. Некорректный формат Email (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Код ошибки поля email — BAD_FORMAT', function () {",
+              "    pm.expect(pm.response.json().error.details.email.code).to.eql('BAD_FORMAT');",
+              "});",
+              "",
+              "pm.test('Сообщение содержит пример корректного адреса', function () {",
+              "    pm.expect(pm.response.json().error.details.email.message).to.include('@');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Иванов Иван\",\n  \"email\": \"ivanov-mail.ru\",\n  \"password\": \"{{password}}\",\n  \"passwordConfirm\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Проверка формата Email регулярным выражением (ТЗ, п. 3.6)."
+      }
+    },
+    {
+      "name": "5. Короткий пароль (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Код ошибки поля password', function () {",
+              "    pm.expect(pm.response.json().error.details.password.code).to.eql('TOO_SHORT');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Иванов Иван\",\n  \"email\": \"short@mail.ru\",\n  \"password\": \"parol1\",\n  \"passwordConfirm\": \"parol1\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Пароль короче 8 символов должен отклоняться."
+      }
+    },
+    {
+      "name": "6. Пароль и подтверждение не совпадают (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Код ошибки подтверждения пароля — MISMATCH', function () {",
+              "    pm.expect(pm.response.json().error.details.passwordConfirm.code).to.eql('MISMATCH');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Иванов Иван\",\n  \"email\": \"mismatch@mail.ru\",\n  \"password\": \"parol12345\",\n  \"passwordConfirm\": \"parol54321\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Проверка совпадения пароля и его повтора (ТЗ, п. 3.6)."
+      }
+    },
+    {
+      "name": "7. Состояние сервера (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Статус 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Сервер сообщает status = OK', function () {",
+              "    pm.expect(pm.response.json().status).to.eql('OK');",
+              "});",
+              "",
+              "pm.test('База данных доступна', function () {",
+              "    pm.expect(pm.response.json().database.connected).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Контрольная проверка работоспособности сервера и базы данных."
+      }
+    }
+  ]
+}

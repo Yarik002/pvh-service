@@ -91,7 +91,10 @@ function prepareDatabase() {
 /** Шаг 5. Контрольная проверка сборки. */
 function runAcceptanceCheck() {
   logger.info('Выполняется контрольная проверка сборки…\n');
-  const script = path.join(config.rootDir, 'scripts', 'check-v0.1.js');
+  // Для текущей версии сборки выбирается соответствующий сценарий проверки
+  const major = config.version.split('.')[0];
+  const minor = config.version.split('.')[1];
+  const script = path.join(config.rootDir, 'scripts', `check-v${major}.${minor}.js`);
   // stdio: 'inherit' — вывод проверки направляется прямо в консоль
   execFileSync(process.execPath, [script], { stdio: 'inherit' });
 }
