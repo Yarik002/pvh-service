@@ -24,6 +24,7 @@ const authRouter = require('./routes/auth');
 const passwordRouter = require('./routes/password');
 const cellsRouter = require('./routes/cells');
 const adminRouter = require('./routes/admin');
+const pagesRouter = require('./routes/pages');
 
 /**
  * Создаёт и настраивает экземпляр приложения.
@@ -58,9 +59,14 @@ function createApp() {
   });
 
   // --- Статические файлы клиентской части ------------------------------
-  // Каталог public/ наполняется на 9-м дне (вёрстка шаблона приложения).
+  // Таблица стилей, сценарии, изображения из каталога public
   if (fs.existsSync(config.publicDir)) {
-    app.use(express.static(config.publicDir, { index: false, maxAge: '1h' }));
+    app.use(express.static(config.publicDir, {
+      index: false,
+      maxAge: config.isProduction ? '1h' : 0,
+      // Файлы, начинающиеся с точки, не отдаются
+      dotfiles: 'ignore',
+    }));
   }
 
   // --- Служебные маршруты ---------------------------------------------
@@ -77,8 +83,10 @@ function createApp() {
   // Административный раздел: доступен только пользователям с ролью admin
   app.use('/api/admin', adminRouter);
 
-  // Корневой маршрут: краткая справка о сервисе и перечень разделов API
-  app.get('/', (req, res) => {
+  // Корневой маршрут: краткая справка о сервисе и перечень разделов API.
+  // Отдаётся в формате JSON по адресу /api; главная страница приложения —
+  // HTML-страница (см. маршруты страниц ниже)
+  app.get('/api', (req, res) => {
     res.status(200).json({
       success: true,
       application: config.appName,
@@ -101,6 +109,10 @@ function createApp() {
         adminOverview: 'GET /api/admin/overview — сводка по ПВЗ (только администратор)',
         adminUsers: 'GET /api/admin/users — список пользователей (только администратор)',
       },
+      pages: {
+        home: 'GET / — главная страница приложения',
+        templateDemo: 'GET /template-demo — страница проверки шаблона',
+      },
       planned: [
         'POST /api/orders — приёмка заказа (14-й день)',
         'GET /api/orders/my — список заказов клиента (16-й день)',
@@ -108,6 +120,11 @@ function createApp() {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // --- Страницы приложения ---------------------------------------------
+  // Разметка формируется на сервере на основе общего шаблона,
+  // поэтому сведения о пользователе и его роли подставляются сразу
+  app.use('/', pagesRouter);
 
   // --- Несуществующие разделы API --------------------------------------
   // Обработчик срабатывает для путей /api/*, не перехваченных выше

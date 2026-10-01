@@ -271,7 +271,7 @@ async function main() {
     check('Эндпоинт /health по-прежнему возвращает OK',
       health.status === 200 && health.body?.status === 'OK');
 
-    const root = await request('GET', '/');
+    const root = await request('GET', '/api');
     check('В перечне эндпоинтов указан вход в систему',
       Boolean(root.body?.endpoints?.login) && Boolean(root.body?.endpoints?.me));
   } finally {

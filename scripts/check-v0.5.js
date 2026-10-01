@@ -236,7 +236,7 @@ async function main() {
     check('Эндпоинт /health по-прежнему возвращает OK',
       health.status === 200 && health.body?.status === 'OK');
 
-    const root = await request('GET', '/');
+    const root = await request('GET', '/api');
     check('В перечне эндпоинтов указано подтверждение адреса',
       Boolean(root.body?.endpoints?.confirm));
     check('Подтверждение адреса больше не числится в плане',

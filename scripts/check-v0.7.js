@@ -249,7 +249,7 @@ async function main() {
     check('Эндпоинт /health по-прежнему возвращает OK',
       health.status === 200 && health.body?.status === 'OK');
 
-    const root = await request('GET', '/');
+    const root = await request('GET', '/api');
     check('В перечне эндпоинтов указаны ячейки и административный раздел',
       Boolean(root.body?.endpoints?.cells) && Boolean(root.body?.endpoints?.adminOverview));
   } finally {

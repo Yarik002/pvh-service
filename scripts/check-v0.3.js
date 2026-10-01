@@ -248,7 +248,7 @@ async function main() {
       health.status === 200 && health.body?.status === 'OK');
     check('В перечне эндпоинтов указана оценка надёжности пароля',
       health.status === 200
-      && Boolean((await request('GET', '/')).body?.endpoints?.passwordStrength));
+      && Boolean((await request('GET', '/api')).body?.endpoints?.passwordStrength));
   } finally {
     await new Promise((resolve) => server.close(resolve));
     closeDb();
