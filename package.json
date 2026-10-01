@@ -1,0 +1,32 @@
+{
+  "name": "pvh-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Веб-приложение «Сервис трекинга заказов и инвентаря для ПВЗ» — серверная часть (учебный проект №1, МКП)",
+  "keywords": [
+    "pvh",
+    "orders",
+    "inventory",
+    "express",
+    "sqlite"
+  ],
+  "license": "UNLICENSED",
+  "author": "Кирдун Я.С. (группа ПО-2409)",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:reset": "node scripts/reset-db.js",
+    "check": "node scripts/check-v0.1.js",
+    "test": "node --test tests/smoke.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.4",
+    "express": "^4.22.3"
+  }
+}
