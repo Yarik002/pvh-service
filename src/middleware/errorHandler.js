@@ -50,6 +50,30 @@ function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-va
   // Трассировка стека отдаётся только в режиме разработки
   if (!config.isProduction && !isOperational) body.error.stack = err.stack;
 
+  // Ошибка «страница не найдена» отдаётся браузеру оформленной страницей,
+  // а программам (и всем обращениям к API) — в формате JSON.
+  // Формат определяется заголовком Accept: браузер запрашивает text/html.
+  const wantsHtml = status === 404
+    && !req.originalUrl.startsWith('/api')
+    && req.accepts(['html', 'json']) === 'html';
+
+  if (wantsHtml) {
+    // Модуль разметки подключается здесь, а не в начале файла: он, в свою
+    // очередь, обращается к настройкам приложения, и порядок загрузки
+    // модулей должен оставаться предсказуемым
+    const { renderPage } = require('../views/layout');
+    const { renderNotFoundContent } = require('../views/authPages');
+
+    const html = renderPage({
+      title: 'Страница не найдена',
+      path: req.path,
+      content: renderNotFoundContent({ path: req.path }),
+    });
+
+    res.status(status).type('html').send(html);
+    return;
+  }
+
   res.status(status).json(body);
 }
 

@@ -220,6 +220,41 @@ router.get('/confirm', (req, res, next) => {
 });
 
 /**
+ * Соответствие внутренних состояний подтверждения адреса значениям
+ * параметра status страницы результата (/confirm).
+ */
+const CONFIRM_REDIRECT_STATUS = {
+  [confirmationService.CONFIRM_STATUS.CONFIRMED]: 'success',
+  [confirmationService.CONFIRM_STATUS.ALREADY_CONFIRMED]: 'success',
+  [confirmationService.CONFIRM_STATUS.EXPIRED]: 'expired',
+  [confirmationService.CONFIRM_STATUS.INVALID_TOKEN]: 'invalid',
+  [confirmationService.CONFIRM_STATUS.MISSING_TOKEN]: 'invalid',
+};
+
+/**
+ * GET /api/auth/confirm/page?token=…
+ *
+ * Альтернативный адрес подтверждения, который после проверки токена
+ * перенаправляет пользователя на страницу результата (/confirm), оформленную
+ * в общем шаблоне приложения — с шапкой, меню и подвалом. Применяется, когда
+ * письмо содержит ссылку именно на эту страницу.
+ */
+router.get('/confirm/page', (req, res, next) => {
+  try {
+    const result = confirmationService.confirmEmail(req.query.token);
+    const status = CONFIRM_REDIRECT_STATUS[result.status] || 'invalid';
+    const email = result.user?.email || '';
+
+    const query = new URLSearchParams({ status });
+    if (email) query.set('email', email);
+
+    return res.redirect(303, `/confirm?${query.toString()}`);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
  * POST /api/auth/confirm
  * Подтверждение адреса электронной почты с передачей токена в теле запроса.
  *

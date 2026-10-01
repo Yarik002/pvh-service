@@ -1,0 +1,126 @@
+'use strict';
+
+/**
+ * Страница регистрации: проверка полей и отправка данных на сервер.
+ *
+ * Порядок работы:
+ *   1) значения проверяются в браузере (модуль form.js) — пользователь
+ *      видит ошибку сразу, не дожидаясь ответа сервера;
+ *   2) данные отправляются запросом POST /api/auth/register;
+ *   3) при успехе показывается сообщение о необходимости подтвердить
+ *      адрес электронной почты, затем выполняется переход на страницу входа;
+ *   4) при ошибке сообщение сервера выводится рядом с соответствующим полем.
+ */
+
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+
+  var form = document.getElementById('register-form');
+  if (!form) return;
+
+  var submitButton = document.getElementById('register-submit');
+  var strengthBlock = document.getElementById('password-strength');
+  var strengthBar = document.getElementById('strength-bar');
+  var strengthLabel = document.getElementById('strength-label');
+
+  if (window.PVH_FORM) window.PVH_FORM.watchFields(form);
+
+  // --- Индикатор надёжности пароля -----------------------------------------
+
+  var strengthTimer = null;
+
+  /** Показывает оценку надёжности пароля. */
+  function showStrength(result) {
+    if (!strengthBlock || !strengthBar || !strengthLabel) return;
+
+    strengthBlock.hidden = !result || !result.password;
+    if (!result || !result.password) return;
+
+    var levels = {
+      veryWeak: { color: 'var(--color-danger)', text: 'очень низкая' },
+      weak: { color: 'var(--color-danger)', text: 'низкая' },
+      medium: { color: 'var(--color-warning)', text: 'средняя' },
+      strong: { color: 'var(--color-success)', text: 'высокая' },
+      veryStrong: { color: 'var(--color-success)', text: 'очень высокая' },
+    };
+
+    var level = levels[result.strength] || levels.weak;
+    strengthBar.style.width = Math.max(4, result.score) + '%';
+    strengthBar.style.background = level.color;
+    strengthLabel.textContent = 'Надёжность пароля: ' + level.text
+      + ' (' + result.score + ' из 100)';
+  }
+
+  var passwordInput = form.querySelector('[name="password"]');
+  if (passwordInput) {
+    passwordInput.addEventListener('input', function () {
+      // Запрос отправляется с небольшой задержкой, чтобы не обращаться
+      // к серверу на каждое нажатие клавиши
+      if (strengthTimer) window.clearTimeout(strengthTimer);
+
+      strengthTimer = window.setTimeout(function () {
+        var values = window.PVH_FORM.collectValues(form);
+        if (!values.password) {
+          showStrength(null);
+          return;
+        }
+
+        window.PVH_API.checkPasswordStrength(values.password, {
+          name: values.name,
+          email: values.email,
+        })
+          .then(showStrength)
+          .catch(function () {
+            // Оценка надёжности — вспомогательная функция: при сбое
+            // отправки формы она не должна мешать регистрации
+            showStrength(null);
+          });
+      }, 350);
+    });
+  }
+
+  // --- Отправка формы -------------------------------------------------------
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (window.PVH) window.PVH.clearAlerts();
+
+    // Проверка в браузере
+    var checked = window.PVH_FORM.validateForm(form);
+    if (!checked.valid) {
+      window.PVH.showAlert('danger', 'Проверьте правильность заполнения полей формы.',
+        'Форма заполнена не полностью');
+      return;
+    }
+
+    var payload = {
+      name: checked.values.name,
+      email: checked.values.email,
+      password: checked.values.password,
+      passwordConfirm: checked.values.passwordConfirm,
+    };
+
+    window.PVH_FORM.setBusy(submitButton, true, 'Отправка…');
+
+    window.PVH_API.register(payload)
+      .then(function (data) {
+        window.PVH_FORM.setBusy(submitButton, false);
+
+        var mail = data.confirmationEmail || {};
+        var message = mail.sent
+          ? 'Учётная запись создана. На адрес ' + payload.email
+            + ' отправлено письмо со ссылкой для подтверждения.'
+          : 'Учётная запись создана. Письмо со ссылкой для подтверждения '
+            + 'будет отправлено при первой возможности.';
+
+        // Сообщение сохраняется и показывается уже на странице входа:
+        // так пользователь видит его после перехода
+        window.PVH.setPendingAlert('success', message, 'Регистрация завершена');
+        window.location.href = '/login';
+      })
+      .catch(function (error) {
+        window.PVH_FORM.setBusy(submitButton, false);
+        window.PVH_FORM.reportError(error);
+      });
+  });
+});

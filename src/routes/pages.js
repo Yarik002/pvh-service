@@ -16,6 +16,12 @@ const express = require('express');
 
 const logger = require('../utils/logger');
 const { renderPage, renderHomeContent } = require('../views/layout');
+const {
+  renderLoginContent,
+  renderRegisterContent,
+  renderConfirmContent,
+  renderNotFoundContent,
+} = require('../views/authPages');
 const { optionalAuth } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -24,6 +30,26 @@ const router = express.Router();
 function toViewUser(user) {
   if (!user) return null;
   return { id: user.id, name: user.name, email: user.email, role: user.role };
+}
+
+/**
+ * Определяет, куда направить пользователя после входа.
+ *
+ * Если в адресе указан параметр next, пользователь возвращается на ту
+ * страницу, с которой его перенаправили на вход. Значение проверяется:
+ * принимаются только внутренние адреса, иначе злоумышленник мог бы
+ * использовать форму входа для перенаправления на сторонний сайт.
+ *
+ * @param {string} value значение параметра next
+ * @returns {string} безопасный адрес перехода
+ */
+function safeRedirect(value) {
+  const target = String(value || '').trim();
+
+  if (target === '' || !target.startsWith('/') || target.startsWith('//')) return '/';
+  if (target.includes('\\') || target.includes('@')) return '/';
+
+  return target;
 }
 
 /**
@@ -187,4 +213,127 @@ router.get('/template-demo', (req, res, next) => {
   }
 });
 
+/**
+ * GET /register
+ * Страница регистрации.
+ *
+ * Уже вошедшего пользователя незачем регистрировать заново: он направляется
+ * на главную страницу.
+ */
+router.get('/register', optionalAuth(), (req, res, next) => {
+  try {
+    const user = toViewUser(req.user);
+
+    if (user) {
+      logger.debug(`Пользователь ${user.email} уже авторизован, страница регистрации не требуется`);
+      return res.redirect(302, '/');
+    }
+
+    const html = renderPage({
+      title: 'Регистрация',
+      path: '/register.html',
+      description: 'Создание учётной записи в сервисе трекинга заказов и инвентаря для ПВЗ.',
+      content: renderRegisterContent(),
+      isAuthenticated: false,
+      user: null,
+      scripts: ['/js/api.js', '/js/form.js', '/js/register.js'],
+    });
+
+    return res.status(200).type('html').send(html);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * GET /login
+ * Страница входа в систему.
+ *
+ * Уже вошедший пользователь направляется на главную страницу либо
+ * на адрес, указанный в параметре next.
+ */
+router.get('/login', optionalAuth(), (req, res, next) => {
+  try {
+    const user = toViewUser(req.user);
+
+    if (user) {
+      return res.redirect(302, safeRedirect(req.query.next));
+    }
+
+    const html = renderPage({
+      title: 'Вход',
+      path: '/login.html',
+      description: 'Вход в личный кабинет сервиса трекинга заказов и инвентаря для ПВЗ.',
+      content: renderLoginContent({ next: safeRedirect(req.query.next) }),
+      isAuthenticated: false,
+      user: null,
+      scripts: ['/js/api.js', '/js/form.js', '/js/login.js'],
+    });
+
+    return res.status(200).type('html').send(html);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * GET /confirm
+ * Страница результата подтверждения адреса электронной почты.
+ *
+ * Серверный маршрут подтверждения (/api/auth/confirm) выполняет проверку
+ * токена и перенаправляет пользователя сюда, передавая результат
+ * в параметрах запроса.
+ */
+router.get('/confirm', (req, res, next) => {
+  try {
+    const status = String(req.query.status || 'unknown');
+    const email = String(req.query.email || '');
+
+    const html = renderPage({
+      title: 'Подтверждение адреса',
+      path: '/confirm.html',
+      description: 'Результат подтверждения адреса электронной почты.',
+      content: renderConfirmContent({ status, email }),
+      isAuthenticated: false,
+      user: null,
+      scripts: ['/js/confirm.js'],
+    });
+
+    res.status(200).type('html').send(html);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- Обработчики адресов файлов --------------------------------------------
+// Ссылки вида /login.html и /register.html встречаются в разметке шапки
+// и подвала. Они перенаправляются на соответствующие страницы, чтобы адреса
+// были единообразными и не зависели от расширения файла.
+
+const EXTENSION_REDIRECTS = {
+  '/index.html': '/',
+  '/login.html': '/login',
+  '/register.html': '/register',
+  '/confirm.html': '/confirm',
+  '/template-demo.html': '/template-demo',
+};
+
+Object.entries(EXTENSION_REDIRECTS).forEach(([from, to]) => {
+  router.get(from, (req, res) => {
+    const query = new URLSearchParams(req.query).toString();
+    res.redirect(301, query ? `${to}?${query}` : to);
+  });
+});
+
+/**
+ * Страница «не найдено» для остальных адресов.
+ *
+ * Здесь только передаётся ошибка 404: формат ответа (оформленная страница
+ * для браузера либо JSON для программы) выбирает обработчик ошибок
+ * в зависимости от заголовка Accept. Такой порядок сохраняет единый
+ * формат ответов API и оформленные страницы для браузера.
+ */
+router.use((req, res, next) => next());
+
 module.exports = router;
+
