@@ -30,12 +30,20 @@ const router = express.Router();
  */
 const REGISTER_WINDOW_MS = Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10); // 15 мин
 const REGISTER_MAX = Number.parseInt(process.env.RATE_LIMIT_MAX || '20', 10);
+const RESEND_MAX = Number.parseInt(process.env.RESEND_LIMIT_MAX || '5', 10);
 
 /** Ограничитель частоты запросов регистрации (общий для всех обращений). */
 const registerLimiter = rateLimit({
   windowMs: REGISTER_WINDOW_MS,
   max: REGISTER_MAX,
   message: 'Слишком много попыток регистрации. Повторите попытку позже.',
+});
+
+/** Ограничитель частоты повторных отправок письма. */
+const resendLimiter = rateLimit({
+  windowMs: REGISTER_WINDOW_MS,
+  max: RESEND_MAX,
+  message: 'Слишком много запросов повторной отправки письма. Повторите попытку позже.',
 });
 
 /**
@@ -61,13 +69,20 @@ router.post(
   registerLimiter,
   async (req, res, next) => {
     try {
-      const { user, confirmToken, strength } = await authService.register(req.body);
+      const { user, confirmToken, strength, delivery } = await authService.register(req.body);
 
       logger.debug(`Токен подтверждения для ${user.email}: ${confirmToken}`);
 
+      // Сообщение зависит от результата отправки письма
+      const emailSent = delivery.status === 'sent' || delivery.status === 'logged';
+      const message = emailSent
+        ? 'Регистрация выполнена успешно. Проверьте почту и подтвердите адрес электронной почты.'
+        : 'Регистрация выполнена, но письмо с подтверждением отправить не удалось. '
+          + 'Запросите письмо повторно.';
+
       res.status(201).json({
         success: true,
-        message: 'Регистрация выполнена успешно. Подтвердите адрес электронной почты.',
+        message,
         user: {
           id: user.id,
           name: user.name,
@@ -81,7 +96,51 @@ router.post(
           level: strength.level,
           label: strength.label,
         },
-        nextStep: 'На адрес электронной почты будет отправлена ссылка для подтверждения аккаунта.',
+        // Результат отправки письма с ссылкой подтверждения
+        confirmationEmail: {
+          sent: emailSent,
+          status: delivery.status,
+          error: delivery.error,
+        },
+        nextStep: emailSent
+          ? 'Перейдите по ссылке из письма, чтобы активировать учётную запись.'
+          : 'Используйте повторную отправку письма: POST /api/auth/resend-confirmation.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * POST /api/auth/resend-confirmation
+ * Повторная отправка письма со ссылкой подтверждения.
+ *
+ * Тело запроса: { "email": "ivanov@mail.ru" }
+ *
+ * Ответы:
+ *   200 — письмо отправлено повторно;
+ *   400 — адрес не указан;
+ *   404 — пользователь не найден;
+ *   409 — учётная запись уже подтверждена;
+ *   429 — превышена частота запросов.
+ */
+router.post(
+  '/resend-confirmation',
+  resendLimiter,
+  async (req, res, next) => {
+    try {
+      const { user, delivery } = await authService.resendConfirmation(req.body?.email);
+
+      const emailSent = delivery.status === 'sent' || delivery.status === 'logged';
+
+      res.status(200).json({
+        success: true,
+        message: emailSent
+          ? 'Письмо со ссылкой подтверждения отправлено повторно.'
+          : 'Отправить письмо повторно не удалось. Попробуйте позже.',
+        user: { id: user.id, email: user.email, isConfirmed: user.isConfirmed },
+        confirmationEmail: { sent: emailSent, status: delivery.status, error: delivery.error },
       });
     } catch (error) {
       next(error);

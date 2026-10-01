@@ -77,6 +77,42 @@ const config = {
     level: readString('LOG_LEVEL', nodeEnv === 'test' ? 'error' : 'info'),
   },
 
+  /** Адрес приложения — используется для ссылок в письмах. */
+  appBaseUrl: readString('APP_BASE_URL', `http://127.0.0.1:${readInt('PORT', 3000)}`),
+
+  /**
+   * Настройки отправки почты.
+   *
+   * Режимы работы (параметр MAIL_TRANSPORT):
+   *   log  — письмо не отправляется, а выводится в журнал (режим по умолчанию;
+   *          позволяет проверять регистрацию без реального почтового ящика);
+   *   smtp — письмо отправляется через почтовый сервер по протоколу SMTP.
+   */
+  mail: {
+    transport: readString('MAIL_TRANSPORT', 'log').toLowerCase(),
+
+    /** Учётные данные и адрес отправителя */
+    fromName: readString('MAIL_FROM_NAME', 'Сервис трекинга заказов и инвентаря для ПВЗ'),
+    fromAddress: readString('MAIL_FROM', 'no-reply@pvh-service.local'),
+    replyTo: readString('MAIL_REPLY_TO', ''),
+
+    smtp: {
+      host: readString('SMTP_HOST', ''),
+      port: readInt('SMTP_PORT', 465),
+      /** Неявное шифрование TLS (порт 465 — true, порт 587 — false) */
+      secure: readBool('SMTP_SECURE', true),
+      /** Запрещать работу без шифрования */
+      requireTls: readBool('SMTP_REQUIRE_TLS', false),
+      user: readString('SMTP_USER', ''),
+      password: readString('SMTP_PASSWORD', ''),
+      /** Таймаут ожидания ответа почтового сервера, мс */
+      timeout: readInt('SMTP_TIMEOUT', 20000),
+    },
+
+    /** Срок действия ссылки подтверждения, часов */
+    confirmTokenTtlHours: readInt('MAIL_CONFIRM_TTL_HOURS', 24),
+  },
+
   /** Каталог со статическими файлами клиентской части (добавится на 9-й день) */
   publicDir: path.join(ROOT_DIR, 'public'),
 };
