@@ -33,9 +33,21 @@ document.addEventListener('DOMContentLoaded', function () {
     window.PVH_API.resendConfirmation({ email: email })
       .then(function (data) {
         window.PVH_FORM.setBusy(submitButton, false);
-        window.PVH.showAlert('success',
-          (data && data.message) || 'Письмо отправлено. Проверьте почту.',
-          'Готово');
+
+        var mail = (data && data.confirmationEmail) || {};
+
+        if (mail.sent) {
+          window.PVH.showAlert('success',
+            'Письмо со ссылкой подтверждения отправлено. Проверьте почту.', 'Готово');
+          return;
+        }
+
+        window.PVH.showAlert('warning',
+          mail.logged
+            ? 'Отправка писем не настроена. Ссылка для подтверждения выведена '
+              + 'в журнал сервера.'
+            : 'Не удалось отправить письмо' + (mail.error ? ': ' + mail.error : '.'),
+          'Письмо не отправлено');
       })
       .catch(function (error) {
         window.PVH_FORM.setBusy(submitButton, false);

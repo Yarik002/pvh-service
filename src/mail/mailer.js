@@ -218,9 +218,32 @@ async function verifyConnection() {
   try {
     await client.connect();
     await client.authenticate();
+
     const capabilities = client.capabilities || [];
+    const capabilitiesText = capabilities.join(' ');
+
+    // Сервер может принять соединение без проверки входа, но отказать
+    // в отправке письма: Gmail отвечает на приветствие кодом 220, а на
+    // попытку отправить письмо без аутентификации — кодом 530.
+    // Поэтому дополнительно проверяется, что вход действительно выполнен,
+    // если сервер заявляет о поддержке аутентификации.
+    const supportsAuth = /AUTH\b/.test(capabilitiesText);
+    const authenticated = Boolean(client.authenticated);
+
     await client.close();
-    return { ok: true, mode: 'smtp', error: null, capabilities };
+
+    if (supportsAuth && !authenticated) {
+      return {
+        ok: false,
+        mode: 'smtp',
+        error: `Сервер ${config.mail.smtp.host} требует аутентификацию, `
+          + 'а логин или пароль не указаны. Письма отправляться не будут.',
+        capabilities,
+        authenticated: false,
+      };
+    }
+
+    return { ok: true, mode: 'smtp', error: null, capabilities, authenticated };
   } catch (error) {
     await client.close().catch(() => {});
     return {
@@ -228,6 +251,7 @@ async function verifyConnection() {
       mode: 'smtp',
       error: error instanceof SmtpError ? error.message : error.message,
       capabilities: [],
+      authenticated: false,
     };
   }
 }

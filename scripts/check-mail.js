@@ -38,6 +38,42 @@ async function main() {
     console.log(`\nНе заполнены обязательные настройки: ${settings.missing.join(', ')}`);
   }
 
+  // --- Частые ошибки в настройках --------------------------------------
+  // Проверки помогают сразу увидеть причину, по которой письма не уходят,
+  // вместо разбора ответов почтового сервера
+  const hints = [];
+
+  const isGmail = /(^|\.)gmail\.com$/i.test(config.mail.smtp.host || '');
+  const password = config.mail.smtp.password || '';
+
+  if (!config.mail.fromAddress || config.mail.fromAddress.endsWith('.local')) {
+    hints.push('Не указан MAIL_FROM. Укажите реальный адрес отправителя: '
+      + 'многие почтовые серверы не принимают письма с вымышленных адресов.');
+  }
+
+  if (config.mail.smtp.user && config.mail.fromAddress
+      && config.mail.fromAddress.toLowerCase() !== config.mail.smtp.user.toLowerCase()) {
+    hints.push('Адрес отправителя (MAIL_FROM) не совпадает с логином (SMTP_USER). '
+      + 'Gmail и большинство серверов подменяют адрес отправителя на свой — '
+      + 'лучше указать их одинаковыми.');
+  }
+
+  if (isGmail && password) {
+    // Пароль приложения Google состоит из 16 букв; пробелы в нём необязательны
+    const normalized = password.replace(/\s+/g, '');
+    if (!/^[A-Za-z]{16}$/.test(normalized)) {
+      hints.push('Для Gmail в SMTP_PASSWORD указывается пароль приложения '
+        + 'из 16 букв, а не обычный пароль от почты. '
+        + 'Получение: myaccount.google.com → Безопасность → '
+        + 'Двухэтапная аутентификация → Пароли приложений.');
+    }
+  }
+
+  if (hints.length > 0) {
+    console.log('\nНа что обратить внимание:');
+    hints.forEach((hint) => console.log(`  • ${hint}`));
+  }
+
   if (mode === 'log') {
     console.log('\nПисьма не отправляются, а выводятся в журнал сервера.');
     console.log('Чтобы включить реальную отправку, укажите в файле .env:');
@@ -59,18 +95,41 @@ async function main() {
   const result = await mailer.verifyConnection();
 
   if (result.ok) {
-    console.log('Соединение установлено, аутентификация пройдена.');
+    console.log(result.authenticated
+      ? 'Соединение установлено, вход выполнен.'
+      : 'Соединение установлено, вход не требуется.');
+
     if (result.capabilities.length > 0) {
       console.log('\nВозможности сервера:');
       for (const capability of result.capabilities) {
         console.log(`  ${capability}`);
       }
     }
+
     console.log('\nНастройки корректны — письма будут отправляться через этот сервер.');
   } else {
-    console.log('Не удалось установить соединение или пройти аутентификацию.');
+    console.log('Отправка письма невозможна.');
     console.log(`Причина: ${result.error}`);
-    console.log('\nПроверьте значения SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD.');
+
+    // Подсказки по коду ответа почтового сервера
+    const errorText = String(result.error || '');
+
+    if (/530|Authentication Required|требуется аутентификация/i.test(errorText)) {
+      console.log('\nСервер требует вход. Заполните в файле .env:');
+      console.log('  SMTP_USER=<полный адрес почтового ящика>');
+      console.log('  SMTP_PASSWORD=<пароль приложения>');
+    } else if (/535|неверный логин или пароль/i.test(errorText)) {
+      console.log('\nЛогин или пароль отклонены сервером. Наиболее вероятные причины:');
+      console.log('  • используется обычный пароль вместо пароля приложения;');
+      console.log('  • в пароле приложения не включена двухэтапная аутентификация;');
+      console.log('  • в SMTP_USER указан не полный адрес, а только имя ящика.');
+    } else if (/ENOTFOUND|ECONNECT|ETIMEDOUT/i.test(errorText)) {
+      console.log('\nНе удалось подключиться. Проверьте SMTP_HOST, SMTP_PORT '
+        + 'и доступность сети.');
+    } else {
+      console.log('\nПроверьте значения SMTP_HOST, SMTP_PORT, SMTP_SECURE, '
+        + 'SMTP_USER, SMTP_PASSWORD.');
+    }
   }
 
   console.log('='.repeat(74));

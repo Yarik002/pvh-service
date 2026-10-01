@@ -94,12 +94,20 @@ router.post(
 
       logger.debug(`Токен подтверждения для ${user.email}: ${confirmToken}`);
 
-      // Сообщение зависит от результата отправки письма
-      const emailSent = delivery.status === 'sent' || delivery.status === 'logged';
-      const message = emailSent
+      // Сообщение зависит от результата отправки письма.
+      // Режим log НЕ считается отправкой: письмо выводится в журнал сервера
+      // и до адресата не доходит. Иначе пользователь ждал бы письмо, которого
+      // нет, — именно так и выглядит «письмо отправлено», но пустой ящик.
+      const reallySent = delivery.status === 'sent';
+      const loggedOnly = delivery.status === 'logged';
+
+      const message = reallySent
         ? 'Регистрация выполнена успешно. Проверьте почту и подтвердите адрес электронной почты.'
-        : 'Регистрация выполнена, но письмо с подтверждением отправить не удалось. '
-          + 'Запросите письмо повторно.';
+        : loggedOnly
+          ? 'Регистрация выполнена. Отправка писем не настроена: ссылка для подтверждения '
+            + 'выведена в журнал сервера.'
+          : 'Регистрация выполнена, но письмо с подтверждением отправить не удалось. '
+            + 'Запросите письмо повторно.';
 
       res.status(201).json({
         success: true,
@@ -117,15 +125,20 @@ router.post(
           level: strength.level,
           label: strength.label,
         },
-        // Результат отправки письма с ссылкой подтверждения
+        // Результат отправки письма с ссылкой подтверждения.
+        // Поле sent означает именно доставку на почтовый сервер
         confirmationEmail: {
-          sent: emailSent,
+          sent: reallySent,
+          logged: loggedOnly,
           status: delivery.status,
           error: delivery.error,
         },
-        nextStep: emailSent
+        nextStep: reallySent
           ? 'Перейдите по ссылке из письма, чтобы активировать учётную запись.'
-          : 'Используйте повторную отправку письма: POST /api/auth/resend-confirmation.',
+          : loggedOnly
+            ? 'Отправка писем не настроена. Ссылку для подтверждения следует взять '
+              + 'из журнала сервера либо настроить параметры SMTP в файле .env.'
+            : 'Используйте повторную отправку письма: POST /api/auth/resend-confirmation.',
       });
     } catch (error) {
       next(error);
@@ -153,15 +166,24 @@ router.post(
     try {
       const { user, delivery } = await authService.resendConfirmation(req.body?.email);
 
-      const emailSent = delivery.status === 'sent' || delivery.status === 'logged';
+      // Режим log не считается отправкой: письмо остаётся в журнале сервера
+      const reallySent = delivery.status === 'sent';
+      const loggedOnly = delivery.status === 'logged';
 
       res.status(200).json({
         success: true,
-        message: emailSent
+        message: reallySent
           ? 'Письмо со ссылкой подтверждения отправлено повторно.'
-          : 'Отправить письмо повторно не удалось. Попробуйте позже.',
+          : loggedOnly
+            ? 'Отправка писем не настроена: ссылка выведена в журнал сервера.'
+            : 'Отправить письмо повторно не удалось. Попробуйте позже.',
         user: { id: user.id, email: user.email, isConfirmed: user.isConfirmed },
-        confirmationEmail: { sent: emailSent, status: delivery.status, error: delivery.error },
+        confirmationEmail: {
+          sent: reallySent,
+          logged: loggedOnly,
+          status: delivery.status,
+          error: delivery.error,
+        },
       });
     } catch (error) {
       next(error);

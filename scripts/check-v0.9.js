@@ -196,9 +196,14 @@ async function main() {
       registered.body?.message);
     check('Учётная запись создана неподтверждённой',
       registered.body?.user?.isConfirmed === false);
-    check('Письмо со ссылкой отправлено',
-      registered.body?.confirmationEmail?.sent === true,
+    check('Письмо со ссылкой обработано',
+      registered.body?.confirmationEmail?.sent === true
+      || registered.body?.confirmationEmail?.logged === true,
       `режим отправки: ${registered.body?.confirmationEmail?.status}`);
+    check('Поле sent отражает именно доставку на почтовый сервер',
+      registered.body?.confirmationEmail?.sent
+        === (registered.body?.confirmationEmail?.status === 'sent'),
+      'в режиме log письмо не считается отправленным');
 
     // --- 6. Вход до подтверждения отклоняется ---------------------------------
     const tooEarly = await api('POST', '/api/auth/login', {

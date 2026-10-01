@@ -62,8 +62,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
       window.PVH_API.resendConfirmation({ email: emailInput.value.trim() })
         .then(function (data) {
-          button.textContent = 'Письмо отправлено';
-          if (data && data.message) window.PVH.showAlert('success', data.message, 'Готово');
+          var mail = (data && data.confirmationEmail) || {};
+
+          if (mail.sent) {
+            button.textContent = 'Письмо отправлено';
+            window.PVH.showAlert('success',
+              'Письмо со ссылкой подтверждения отправлено повторно.', 'Готово');
+            return;
+          }
+
+          // Отправка не настроена либо не удалась: сообщаем об этом прямо,
+          // иначе пользователь будет ждать письмо, которого нет
+          button.disabled = false;
+          button.textContent = 'Отправить письмо повторно';
+
+          window.PVH.showAlert('warning',
+            mail.logged
+              ? 'Отправка писем не настроена. Ссылка для подтверждения выведена '
+                + 'в журнал сервера.'
+              : 'Не удалось отправить письмо' + (mail.error ? ': ' + mail.error : '.'),
+            'Письмо не отправлено');
         })
         .catch(function (error) {
           button.disabled = false;

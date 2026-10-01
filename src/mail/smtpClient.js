@@ -170,6 +170,8 @@ class SmtpClient {
 
     /** @type {import('net').Socket | import('tls').TLSSocket | null} */
     this.socket = null;
+    /** Признак успешно выполненного входа: нужен диагностике. */
+    this.authenticated = false;
     /** @type {Array<{resolve: Function, reject: Function, codes: string[]}>} */
     this.waiters = [];
     this.buffer = '';
@@ -386,6 +388,7 @@ class SmtpClient {
       const token = Buffer.from(`\u0000${user}\u0000${password}`, 'utf8').toString('base64');
       try {
         await this.command(`AUTH PLAIN ${token}`, ['235']);
+        this.authenticated = true;
         return;
       } catch (error) {
         if (!supportsLogin) throw error;
@@ -397,6 +400,7 @@ class SmtpClient {
       await this.command('AUTH LOGIN', ['334']);
       await this.command(Buffer.from(user, 'utf8').toString('base64'), ['334']);
       await this.command(Buffer.from(password, 'utf8').toString('base64'), ['235']);
+      this.authenticated = true;
       return;
     }
 
