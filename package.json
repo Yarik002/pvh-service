@@ -22,6 +22,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:reset": "node scripts/reset-db.js",
     "check": "node scripts/check-v0.1.js",
+    "archive-day": "node scripts/archive-day.js",
     "test": "node --test tests/smoke.test.js"
   },
   "dependencies": {
