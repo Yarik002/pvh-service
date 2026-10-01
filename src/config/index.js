@@ -113,6 +113,19 @@ const config = {
     confirmTokenTtlHours: readInt('MAIL_CONFIRM_TTL_HOURS', 24),
   },
 
+  /** Настройки сессий авторизации. */
+  session: {
+    /** Срок действия сессии, часов (по умолчанию 7 суток) */
+    ttlHours: readInt('SESSION_TTL_HOURS', 168),
+  },
+
+  /** Учётная запись администратора для начальной настройки (npm run seed). */
+  seed: {
+    adminEmail: readString('ADMIN_EMAIL', 'admin@pvh.local'),
+    adminName: readString('ADMIN_NAME', 'Администратор ПВЗ'),
+    adminPassword: readString('ADMIN_PASSWORD', ''),
+  },
+
   /** Каталог со статическими файлами клиентской части (добавится на 9-й день) */
   publicDir: path.join(ROOT_DIR, 'public'),
 };

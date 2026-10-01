@@ -19,7 +19,9 @@ const logger = require('../utils/logger');
 const rateLimit = require('../middleware/rateLimit');
 const authService = require('../services/authService');
 const confirmationService = require('../services/confirmationService');
+const sessionService = require('../services/sessionService');
 const { confirmationPage } = require('../views/confirmationPage');
+const { requireAuth, optionalAuth } = require('../middleware/authenticate');
 
 const router = express.Router();
 
@@ -34,6 +36,8 @@ const REGISTER_WINDOW_MS = Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS || '
 const REGISTER_MAX = Number.parseInt(process.env.RATE_LIMIT_MAX || '20', 10);
 const RESEND_MAX = Number.parseInt(process.env.RESEND_LIMIT_MAX || '5', 10);
 const CONFIRM_MAX = Number.parseInt(process.env.CONFIRM_LIMIT_MAX || '20', 10);
+const LOGIN_MAX = Number.parseInt(process.env.LOGIN_LIMIT_MAX || '10', 10);
+const LOGIN_WINDOW_MS = Number.parseInt(process.env.LOGIN_LIMIT_WINDOW_MS || '900000', 10);
 
 /** Ограничитель частоты запросов регистрации (общий для всех обращений). */
 const registerLimiter = rateLimit({
@@ -54,6 +58,13 @@ const confirmLimiter = rateLimit({
   windowMs: REGISTER_WINDOW_MS,
   max: CONFIRM_MAX,
   message: 'Слишком много попыток подтверждения. Повторите попытку позже.',
+});
+
+/** Ограничитель частоты попыток входа (защита от подбора пароля). */
+const loginLimiter = rateLimit({
+  windowMs: LOGIN_WINDOW_MS,
+  max: LOGIN_MAX,
+  message: 'Слишком много попыток входа. Повторите попытку позже.',
 });
 
 /**
@@ -260,6 +271,109 @@ router.get('/confirm/check', (req, res, next) => {
       message: result.message,
       timeLeftHours: result.timeLeftHours,
       user: result.user ? { email: result.user.email } : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/auth/login
+ * Вход в систему по адресу электронной почты и паролю.
+ *
+ * Тело запроса:
+ *   { "email": "ivanov@mail.ru", "password": "parol12345" }
+ *
+ * Ответы:
+ *   200 — вход выполнен, выдан токен сессии;
+ *   400 — поля заполнены неверно;
+ *   401 — неверный адрес электронной почты или пароль;
+ *   403 — адрес электронной почты не подтверждён;
+ *   429 — превышена частота попыток.
+ *
+ * Токен возвращается двумя способами: в теле ответа (для программных клиентов)
+ * и в cookie HttpOnly (для браузера — недоступна из JavaScript).
+ */
+router.post(
+  '/login',
+  loginLimiter,
+  async (req, res, next) => {
+    try {
+      const { user, token, expiresAt } = await authService.login(req.body, {
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+      });
+
+      sessionService.setSessionCookie(res, token, expiresAt);
+
+      res.status(200).json({
+        success: true,
+        message: 'Вход выполнен успешно.',
+        token,
+        tokenType: 'Bearer',
+        expiresAt: expiresAt.toISOString(),
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isConfirmed: user.isConfirmed,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * POST /api/auth/logout
+ * Выход из системы: текущая сессия завершается.
+ *
+ * Ответы: 200 — сессия завершена (или уже была завершена).
+ */
+router.post('/logout', optionalAuth(), (req, res, next) => {
+  try {
+    // Если сессия не определена, пробуем извлечь токен напрямую
+    const token = req.sessionToken || sessionService.extractToken(req);
+    const { closed } = authService.logout(token);
+
+    sessionService.clearSessionCookie(res);
+
+    res.status(200).json({
+      success: true,
+      message: closed ? 'Вы вышли из системы.' : 'Активная сессия не найдена.',
+      closed,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/auth/me
+ * Данные текущего пользователя по действующей сессии.
+ *
+ * Ответы: 200 — данные пользователя; 401 — сессия отсутствует или истекла.
+ */
+router.get('/me', requireAuth(), (req, res, next) => {
+  try {
+    const user = req.user;
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isConfirmed: user.isConfirmed,
+      },
+      session: {
+        createdAt: req.session.createdAt,
+        expiresAt: req.session.expiresAt,
+        lastUsedAt: req.session.lastUsedAt,
+      },
     });
   } catch (error) {
     next(error);

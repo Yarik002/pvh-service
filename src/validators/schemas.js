@@ -104,4 +104,19 @@ const changePasswordSchema = {
   },
 };
 
-module.exports = { registerSchema, changePasswordSchema, passwordRules };
+/** Схема входа в систему. */
+const loginSchema = {
+  email: {
+    label: 'Адрес электронной почты',
+    rules: [
+      required('Адрес электронной почты'),
+      emailPattern(),
+    ],
+  },
+  password: {
+    label: 'Пароль',
+    rules: [required('Пароль')],
+  },
+};
+
+module.exports = { registerSchema, changePasswordSchema, loginSchema, passwordRules };

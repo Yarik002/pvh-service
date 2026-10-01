@@ -10,6 +10,7 @@
  */
 
 const { getDb } = require('../db/connection');
+const { toIso } = require('../utils/datetime');
 
 /** Поля, которые можно безопасно возвращать клиенту (без хеша пароля). */
 const PUBLIC_FIELDS = 'id, name, email, role, is_confirmed, confirm_token, confirm_token_created_at';
@@ -25,10 +26,7 @@ function mapRow(row) {
     role: row.role,
     isConfirmed: row.is_confirmed === 1,
     confirmToken: row.confirm_token,
-    // SQLite хранит дату строкой вида «YYYY-MM-DD HH:MM:SS» в формате UTC
-    confirmTokenCreatedAt: row.confirm_token_created_at
-      ? new Date(`${row.confirm_token_created_at.replace(' ', 'T')}Z`)
-      : null,
+    confirmTokenCreatedAt: toIso(row.confirm_token_created_at),
   };
 }
 

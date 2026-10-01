@@ -11,8 +11,10 @@
 
 const express = require('express');
 
+const { getDb } = require('../db/connection');
 const rateLimit = require('../middleware/rateLimit');
 const passwordService = require('../services/passwordService');
+const { requireAuth } = require('../middleware/authenticate');
 
 const router = express.Router();
 
@@ -53,6 +55,56 @@ router.post('/strength', strengthLimiter, (req, res, next) => {
       success: true,
       strength,
       message: `Надёжность пароля: ${strength.label.toLowerCase()} (${strength.score} из 100)`,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/password/change
+ * Смена пароля текущим пользователем. Требует действующей сессии.
+ *
+ * Тело запроса:
+ *   {
+ *     "currentPassword": "Xk9#mQ2$vL7p",
+ *     "newPassword": "Tr9$kLm2#nQ",
+ *     "newPasswordConfirm": "Tr9$kLm2#nQ"
+ *   }
+ *
+ * Ответы:
+ *   200 — пароль изменён; остальные сессии пользователя завершены;
+ *   400 — форма заполнена неверно или новый пароль ненадёжен;
+ *   401 — сессия отсутствует/истекла либо неверный текущий пароль;
+ *   404 — пользователь не найден.
+ *
+ * После смены пароля все прочие сессии завершаются: если пароль был изменён
+ * из-за подозрения на компрометацию, доступ по старым токенам должен
+ * прекратиться. Текущая сессия при этом сохраняется.
+ */
+router.post('/change', requireAuth(), async (req, res, next) => {
+  try {
+    const currentSessionId = req.session?.id;
+
+    const { user } = await passwordService.changePassword(req.user.id, req.body || {});
+
+    // Завершаем все сессии пользователя, кроме текущей
+    const removed = getDb()
+      .prepare('DELETE FROM Sessions WHERE user_id = ? AND id <> ?')
+      .run(req.user.id, currentSessionId ?? 0).changes;
+
+    res.status(200).json({
+      success: true,
+      message: removed > 0
+        ? 'Пароль изменён. Остальные сессии завершены.'
+        : 'Пароль изменён.',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      otherSessionsClosed: removed,
     });
   } catch (error) {
     next(error);

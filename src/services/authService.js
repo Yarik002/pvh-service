@@ -18,13 +18,21 @@
 
 const logger = require('../utils/logger');
 const AppError = require('../utils/AppError');
-const { hashPassword } = require('../utils/password');
+const { hashPassword, verifyPassword } = require('../utils/password');
 const { analyzePassword, findWeaknessReason } = require('../utils/passwordStrength');
 const { generateUrlSafeToken } = require('../utils/token');
 const { validate } = require('../validators/rules');
-const { registerSchema } = require('../validators/schemas');
+const { registerSchema, loginSchema } = require('../validators/schemas');
 const userRepository = require('../repositories/userRepository');
 const mailer = require('../mail/mailer');
+const sessionService = require('./sessionService');
+
+/**
+ * Единое сообщение для неверной пары «адрес электронной почты — пароль».
+ * Одинаковый текст для обоих случаев не позволяет перебирать существующие
+ * адреса по разнице в сообщениях об ошибке.
+ */
+const INVALID_CREDENTIALS = 'Неверный адрес электронной почты или пароль';
 
 /**
  * Проверяет, что пароль не содержит личных данных пользователя.
@@ -164,4 +172,90 @@ async function resendConfirmation(email) {
   };
 }
 
-module.exports = { register, resendConfirmation };
+/**
+ * Выполняет вход в систему (авторизацию).
+ *
+ * Порядок работы:
+ *   1) проверка формы входа (адрес электронной почты и пароль обязательны);
+ *   2) поиск пользователя по адресу электронной почты;
+ *   3) проверка пароля по сохранённому хешу;
+ *   4) проверка того, что адрес электронной почты подтверждён;
+ *   5) формирование сессии и выдача токена.
+ *
+ * Требование ТЗ (п. 3.3): вход разрешён только пользователям с подтверждённым
+ * адресом электронной почты.
+ *
+ * @param {{email: string, password: string}} payload данные формы входа
+ * @param {{userAgent?: string, ipAddress?: string}} [context] сведения о клиенте
+ * @returns {Promise<{user: object, token: string, session: object, expiresAt: Date}>}
+ * @throws {AppError} 400 — форма заполнена неверно;
+ *                    401 — неверные учётные данные;
+ *                    403 — адрес электронной почты не подтверждён
+ */
+async function login(payload, context = {}) {
+  // Шаг 1. Проверка формы
+  const data = validate(payload, loginSchema);
+
+  // Шаг 2. Поиск пользователя
+  const user = userRepository.findByEmail(data.email);
+
+  // Шаг 3. Проверка пароля.
+  // Для несуществующего пользователя проверка выполняется с заведомо неверным
+  // хешем: время ответа не должно позволять определить, зарегистрирован ли адрес.
+  const passwordMatches = user
+    ? await verifyPassword(data.password, user.passwordHash)
+    : await verifyPassword(data.password, `${'scrypt$16384$8$1$'}${'00'.repeat(16)}$${'00'.repeat(64)}`);
+
+  // Сообщение одинаково для неверного адреса и неверного пароля:
+  // иначе по тексту ошибки можно было бы перебирать существующие адреса
+  if (!user || !passwordMatches) {
+    logger.warn(`Неудачная попытка входа: ${data.email}`);
+    throw new AppError(INVALID_CREDENTIALS, 401, 'INVALID_CREDENTIALS');
+  }
+
+  // Шаг 4. Проверка подтверждения адреса электронной почты
+  if (!user.isConfirmed) {
+    logger.warn(`Попытка входа в неподтверждённую учётную запись: ${user.email}`);
+    throw new AppError(
+      'Адрес электронной почты не подтверждён. Перейдите по ссылке из письма '
+      + 'или запросите новое письмо.',
+      403,
+      'EMAIL_NOT_CONFIRMED',
+    );
+  }
+
+  // Шаг 5. Формирование сессии
+  const { token, session, expiresAt } = sessionService.createSession(user.id, context);
+
+  logger.info(`Успешный вход: id=${user.id} (${user.email}), роль ${user.role}`);
+
+  return { user: userRepository.toPublic(user), token, session, expiresAt };
+}
+
+/**
+ * Завершает текущую сессию (выход из системы).
+ * @param {string} token токен сессии
+ * @returns {{closed: boolean}}
+ */
+function logout(token) {
+  return { closed: sessionService.destroySession(token) };
+}
+
+/**
+ * Возвращает данные пользователя по действующей сессии.
+ * @param {object|null} session запись сессии
+ * @returns {object|null}
+ */
+function getCurrentUser(session) {
+  if (!session) return null;
+  return userRepository.findById(session.userId);
+}
+
+module.exports = {
+  register,
+  resendConfirmation,
+  login,
+  logout,
+  getCurrentUser,
+  INVALID_CREDENTIALS,
+};

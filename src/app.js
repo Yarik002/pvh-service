@@ -17,6 +17,7 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const AppError = require('./utils/AppError');
 const requestLogger = require('./middleware/requestLogger');
+const { cookieParser } = require('./middleware/cookies');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const healthRouter = require('./routes/health');
 const authRouter = require('./routes/auth');
@@ -38,6 +39,10 @@ function createApp() {
   // Ограничение 1 МБ защищает от переполнения памяти большим запросом
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+  // --- Разбор cookie ---------------------------------------------------
+  // Нужен для хранения токена сессии в браузере
+  app.use(cookieParser());
 
   // --- Логирование запросов -------------------------------------------
   app.use(requestLogger({ logLevel: 'info', ignore: ['/favicon.ico'] }));
@@ -79,14 +84,15 @@ function createApp() {
         healthLive: 'GET /health/live — проверка живости процесса',
         healthReady: 'GET /health/ready — проверка готовности сервиса',
         register: 'POST /api/auth/register — регистрация нового пользователя',
+        login: 'POST /api/auth/login — вход в систему, выдача токена сессии',
+        logout: 'POST /api/auth/logout — выход из системы',
+        me: 'GET /api/auth/me — данные текущего пользователя',
         confirm: 'GET /api/auth/confirm?token=… — подтверждение адреса электронной почты',
         confirmCheck: 'GET /api/auth/confirm/check?token=… — проверка ссылки подтверждения',
         resend: 'POST /api/auth/resend-confirmation — повторная отправка письма',
         passwordStrength: 'POST /api/password/strength — оценка надёжности пароля',
       },
       planned: [
-        'POST /api/auth/login — вход в систему (7-й день)',
-        'POST /api/password/change — смена пароля (7-й день, после авторизации)',
         'GET /api/cells — управление ячейками хранения (12-й день)',
         'POST /api/orders — приёмка заказа (14-й день)',
       ],

@@ -58,26 +58,46 @@ function getTokenTtlHours() {
 /**
  * Проверяет, истёк ли срок действия токена.
  *
- * Токен, у которого не заполнена дата формирования (записи, созданные
- * до появления поля), считается действующим: иначе пользователи, зарегистрированные
- * ранее, не смогли бы подтвердить адрес.
+ * Дата принимается как в виде объекта Date, так и в виде строки (значение
+ * из базы данных). Токен, у которого дата формирования не заполнена (записи,
+ * созданные до появления поля), считается действующим: иначе пользователи,
+ * зарегистрированные ранее, не смогли бы подтвердить адрес.
  *
- * @param {Date|null} createdAt дата формирования токена
+ * @param {Date|string|null} createdAt дата формирования токена
  * @returns {boolean}
  */
 function isTokenExpired(createdAt) {
-  if (!createdAt) return false;
-  if (Number.isNaN(createdAt.getTime())) return false;
+  const created = toDate(createdAt);
+  if (!created) return false;
 
   const ttlMs = getTokenTtlHours() * 60 * 60 * 1000;
-  return Date.now() - createdAt.getTime() > ttlMs;
+  return Date.now() - created.getTime() > ttlMs;
+}
+
+/** Приводит значение из базы данных к объекту Date. */
+function toDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const text = String(value).trim();
+  if (text === '') return null;
+
+  const normalized = text.replace(' ', 'T');
+  const hasZone = /Z$|[+-]\d{2}:?\d{2}$/.test(normalized);
+  const date = new Date(hasZone ? normalized : `${normalized}Z`);
+
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /** Сколько времени осталось до истечения ссылки (в часах). */
 function getTokenTimeLeftHours(createdAt) {
-  if (!createdAt) return null;
+  const created = toDate(createdAt);
+  if (!created) return null;
+
   const ttlMs = getTokenTtlHours() * 60 * 60 * 1000;
-  const leftMs = ttlMs - (Date.now() - createdAt.getTime());
+  const leftMs = ttlMs - (Date.now() - created.getTime());
   return leftMs > 0 ? Math.round((leftMs / (60 * 60 * 1000)) * 10) / 10 : 0;
 }
 
