@@ -22,6 +22,8 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const healthRouter = require('./routes/health');
 const authRouter = require('./routes/auth');
 const passwordRouter = require('./routes/password');
+const cellsRouter = require('./routes/cells');
+const adminRouter = require('./routes/admin');
 
 /**
  * Создаёт и настраивает экземпляр приложения.
@@ -70,6 +72,10 @@ function createApp() {
   app.use('/api/auth', authRouter);
   // Маршруты работы с паролями: оценка надёжности, смена пароля
   app.use('/api/password', passwordRouter);
+  // Ячейки хранения: просмотр — всем авторизованным, изменение — администратору
+  app.use('/api/cells', cellsRouter);
+  // Административный раздел: доступен только пользователям с ролью admin
+  app.use('/api/admin', adminRouter);
 
   // Корневой маршрут: краткая справка о сервисе и перечень разделов API
   app.get('/', (req, res) => {
@@ -91,10 +97,13 @@ function createApp() {
         confirmCheck: 'GET /api/auth/confirm/check?token=… — проверка ссылки подтверждения',
         resend: 'POST /api/auth/resend-confirmation — повторная отправка письма',
         passwordStrength: 'POST /api/password/strength — оценка надёжности пароля',
+        cells: 'GET /api/cells — список ячеек хранения (для авторизованных)',
+        adminOverview: 'GET /api/admin/overview — сводка по ПВЗ (только администратор)',
+        adminUsers: 'GET /api/admin/users — список пользователей (только администратор)',
       },
       planned: [
-        'GET /api/cells — управление ячейками хранения (12-й день)',
         'POST /api/orders — приёмка заказа (14-й день)',
+        'GET /api/orders/my — список заказов клиента (16-й день)',
       ],
       timestamp: new Date().toISOString(),
     });
