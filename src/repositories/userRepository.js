@@ -12,7 +12,7 @@
 const { getDb } = require('../db/connection');
 
 /** Поля, которые можно безопасно возвращать клиенту (без хеша пароля). */
-const PUBLIC_FIELDS = 'id, name, email, role, is_confirmed, confirm_token';
+const PUBLIC_FIELDS = 'id, name, email, role, is_confirmed, confirm_token, confirm_token_created_at';
 const SAFE_FIELDS = 'id, name, email, role, is_confirmed';
 
 /** Приводит строку базы данных к удобному для клиента виду. */
@@ -25,6 +25,10 @@ function mapRow(row) {
     role: row.role,
     isConfirmed: row.is_confirmed === 1,
     confirmToken: row.confirm_token,
+    // SQLite хранит дату строкой вида «YYYY-MM-DD HH:MM:SS» в формате UTC
+    confirmTokenCreatedAt: row.confirm_token_created_at
+      ? new Date(`${row.confirm_token_created_at.replace(' ', 'T')}Z`)
+      : null,
   };
 }
 
@@ -34,7 +38,7 @@ function mapRow(row) {
  */
 function toPublic(user) {
   if (!user) return null;
-  const { confirmToken, passwordHash, ...rest } = user;
+  const { confirmToken, confirmTokenCreatedAt, passwordHash, ...rest } = user;
   return rest;
 }
 
@@ -68,11 +72,12 @@ function findById(id) {
 }
 
 /**
- * Находит пользователя по токену подтверждения (понадобится на 6-м дне).
+ * Находит пользователя по токену подтверждения.
  * @param {string} token
  * @returns {object|null}
  */
 function findByConfirmToken(token) {
+  if (typeof token !== 'string' || token === '') return null;
   const row = getDb()
     .prepare(`SELECT ${PUBLIC_FIELDS} FROM Users WHERE confirm_token = ?`)
     .get(token);
@@ -89,8 +94,10 @@ function findByConfirmToken(token) {
 function create({ name, email, passwordHash, role = 'client', isConfirmed = false, confirmToken = null }) {
   const info = getDb()
     .prepare(
-      `INSERT INTO Users (name, email, password_hash, role, is_confirmed, confirm_token)
-       VALUES (@name, @email, @passwordHash, @role, @isConfirmed, @confirmToken)`,
+      `INSERT INTO Users (name, email, password_hash, role, is_confirmed,
+                          confirm_token, confirm_token_created_at)
+       VALUES (@name, @email, @passwordHash, @role, @isConfirmed,
+               @confirmToken, CASE WHEN @confirmToken IS NULL THEN NULL ELSE datetime('now') END)`,
     )
     .run({
       name,
@@ -105,13 +112,24 @@ function create({ name, email, passwordHash, role = 'client', isConfirmed = fals
 }
 
 /**
- * Отмечает учётную запись как подтверждённую и удаляет токен (6-й день).
+ * Отмечает учётную запись как подтверждённую и удаляет использованный токен.
+ *
+ * Токен очищается, поэтому ссылка из письма становится недействительной:
+ * повторно воспользоваться ею нельзя.
+ *
  * @param {number} id
  * @returns {object|null} обновлённая запись
  */
 function confirm(id) {
   getDb()
-    .prepare('UPDATE Users SET is_confirmed = 1, confirm_token = NULL WHERE id = ?')
+    .prepare(
+      `UPDATE Users
+          SET is_confirmed = 1,
+              confirm_token = NULL,
+              confirm_token_created_at = NULL,
+              confirm_attempts = 0
+        WHERE id = ?`,
+    )
     .run(id);
   return findById(id);
 }
@@ -134,14 +152,53 @@ function updatePasswordHash(id, passwordHash) {
 }
 
 /**
- * Заменяет токен подтверждения (потребуется при повторной отправке письма).
+ * Заменяет токен подтверждения и обновляет дату его формирования
+ * (используется при повторной отправке письма).
+ *
  * @param {number} id
  * @param {string} token
+ * @returns {object|null} обновлённая запись
  */
 function updateConfirmToken(id, token) {
   getDb()
-    .prepare('UPDATE Users SET confirm_token = ? WHERE id = ?')
+    .prepare(
+      `UPDATE Users
+          SET confirm_token = ?,
+              confirm_token_created_at = datetime('now'),
+              confirm_attempts = 0
+        WHERE id = ?`,
+    )
     .run(token, id);
+  return findById(id);
+}
+
+/**
+ * Увеличивает счётчик неудачных попыток подтверждения.
+ * Используется для защиты от подбора токена.
+ *
+ * @param {number} id
+ * @returns {number} новое значение счётчика
+ */
+function incrementConfirmAttempts(id) {
+  const db = getDb();
+  db.prepare('UPDATE Users SET confirm_attempts = confirm_attempts + 1 WHERE id = ?').run(id);
+  return db.prepare('SELECT confirm_attempts AS n FROM Users WHERE id = ?').get(id)?.n ?? 0;
+}
+
+/** Возвращает число неудачных попыток подтверждения для пользователя. */
+function getConfirmAttempts(id) {
+  return getDb().prepare('SELECT confirm_attempts AS n FROM Users WHERE id = ?').get(id)?.n ?? 0;
+}
+
+/**
+ * Возвращает пользователей с неподтверждённым адресом электронной почты.
+ * @returns {object[]}
+ */
+function findUnconfirmed() {
+  return getDb()
+    .prepare(`SELECT ${PUBLIC_FIELDS} FROM Users WHERE is_confirmed = 0 ORDER BY id`)
+    .all()
+    .map(mapRow);
 }
 
 /** Возвращает общее количество пользователей (используется в проверках). */
@@ -157,6 +214,9 @@ module.exports = {
   confirm,
   updatePasswordHash,
   updateConfirmToken,
+  incrementConfirmAttempts,
+  getConfirmAttempts,
+  findUnconfirmed,
   count,
   toPublic,
   SAFE_FIELDS,

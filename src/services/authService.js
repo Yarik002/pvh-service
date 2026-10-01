@@ -144,7 +144,9 @@ async function resendConfirmation(email) {
     });
   }
 
-  // Формируем новый токен: срок действия предыдущего мог истечь
+  // Формируем новый токен: срок действия предыдущего мог истечь.
+  // Репозиторий одновременно обновляет дату формирования токена, поэтому
+  // отсчёт срока действия начинается заново.
   const confirmToken = generateUrlSafeToken(32);
   userRepository.updateConfirmToken(user.id, confirmToken);
 

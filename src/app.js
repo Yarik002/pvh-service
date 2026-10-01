@@ -79,10 +79,12 @@ function createApp() {
         healthLive: 'GET /health/live — проверка живости процесса',
         healthReady: 'GET /health/ready — проверка готовности сервиса',
         register: 'POST /api/auth/register — регистрация нового пользователя',
+        confirm: 'GET /api/auth/confirm?token=… — подтверждение адреса электронной почты',
+        confirmCheck: 'GET /api/auth/confirm/check?token=… — проверка ссылки подтверждения',
+        resend: 'POST /api/auth/resend-confirmation — повторная отправка письма',
         passwordStrength: 'POST /api/password/strength — оценка надёжности пароля',
       },
       planned: [
-        'GET /api/auth/confirm — подтверждение адреса электронной почты (6-й день)',
         'POST /api/auth/login — вход в систему (7-й день)',
         'POST /api/password/change — смена пароля (7-й день, после авторизации)',
         'GET /api/cells — управление ячейками хранения (12-й день)',

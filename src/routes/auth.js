@@ -18,6 +18,8 @@ const express = require('express');
 const logger = require('../utils/logger');
 const rateLimit = require('../middleware/rateLimit');
 const authService = require('../services/authService');
+const confirmationService = require('../services/confirmationService');
+const { confirmationPage } = require('../views/confirmationPage');
 
 const router = express.Router();
 
@@ -31,6 +33,7 @@ const router = express.Router();
 const REGISTER_WINDOW_MS = Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10); // 15 мин
 const REGISTER_MAX = Number.parseInt(process.env.RATE_LIMIT_MAX || '20', 10);
 const RESEND_MAX = Number.parseInt(process.env.RESEND_LIMIT_MAX || '5', 10);
+const CONFIRM_MAX = Number.parseInt(process.env.CONFIRM_LIMIT_MAX || '20', 10);
 
 /** Ограничитель частоты запросов регистрации (общий для всех обращений). */
 const registerLimiter = rateLimit({
@@ -44,6 +47,13 @@ const resendLimiter = rateLimit({
   windowMs: REGISTER_WINDOW_MS,
   max: RESEND_MAX,
   message: 'Слишком много запросов повторной отправки письма. Повторите попытку позже.',
+});
+
+/** Ограничитель частоты попыток подтверждения (защита от подбора токена). */
+const confirmLimiter = rateLimit({
+  windowMs: REGISTER_WINDOW_MS,
+  max: CONFIRM_MAX,
+  message: 'Слишком много попыток подтверждения. Повторите попытку позже.',
 });
 
 /**
@@ -147,5 +157,113 @@ router.post(
     }
   },
 );
+
+/**
+ * GET /api/auth/confirm?token=…
+ * Подтверждение адреса электронной почты по ссылке из письма.
+ *
+ * Пользователь открывает ссылку в браузере, поэтому:
+ *   • по умолчанию возвращается HTML-страница с понятным результатом;
+ *   • при запросе с заголовком Accept: application/json возвращается JSON —
+ *     это удобно для проверок и для клиентской части приложения.
+ *
+ * Результаты:
+ *   200 — адрес подтверждён (или уже был подтверждён ранее);
+ *   400 — токен отсутствует или недействителен;
+ *   410 — срок действия ссылки истёк.
+ */
+router.get('/confirm', (req, res, next) => {
+  try {
+    const result = confirmationService.confirmEmail(req.query.token);
+    const wantsJson = req.accepts(['html', 'json']) === 'json';
+
+    // Ошибки отдаются с соответствующим статусом, но всегда с понятным текстом
+    const isSuccess = result.status === confirmationService.CONFIRM_STATUS.CONFIRMED
+      || result.status === confirmationService.CONFIRM_STATUS.ALREADY_CONFIRMED;
+
+    let statusCode = 200;
+    if (!isSuccess) {
+      statusCode = result.status === confirmationService.CONFIRM_STATUS.EXPIRED ? 410 : 400;
+    }
+
+    if (wantsJson) {
+      return res.status(statusCode).json({
+        success: isSuccess,
+        status: result.status,
+        message: result.message,
+        user: result.user
+          ? {
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            isConfirmed: result.user.isConfirmed,
+          }
+          : null,
+      });
+    }
+
+    return res.status(statusCode).type('html').send(confirmationPage(result));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * POST /api/auth/confirm
+ * Подтверждение адреса электронной почты с передачей токена в теле запроса.
+ *
+ * Тело: { "token": "…" } либо { "email": "…", "token": "…" }
+ * Полезно, когда приложение отправляет подтверждение программно.
+ *
+ * Ответы: 200 — подтверждено; 400 — токен недействителен; 410 — срок истёк.
+ */
+router.post('/confirm', confirmLimiter, (req, res, next) => {
+  try {
+    const result = confirmationService.confirmEmailOrFail(req.body?.token);
+    const alreadyConfirmed = result.status === confirmationService.CONFIRM_STATUS.ALREADY_CONFIRMED;
+
+    res.status(200).json({
+      success: true,
+      status: result.status,
+      message: result.message,
+      alreadyConfirmed,
+      user: result.user
+        ? {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role,
+          isConfirmed: result.user.isConfirmed,
+        }
+        : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/auth/confirm/check?token=…
+ * Проверка ссылки без подтверждения учётной записи.
+ *
+ * Позволяет интерфейсу заранее показать пользователю, действительна ли ссылка,
+ * и сколько времени осталось до истечения её срока.
+ */
+router.get('/confirm/check', (req, res, next) => {
+  try {
+    const result = confirmationService.checkToken(req.query.token);
+    const isValid = result.status === 'valid';
+
+    res.status(isValid ? 200 : 400).json({
+      success: isValid,
+      status: result.status,
+      message: result.message,
+      timeLeftHours: result.timeLeftHours,
+      user: result.user ? { email: result.user.email } : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 module.exports = router;
