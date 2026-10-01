@@ -20,6 +20,7 @@ const requestLogger = require('./middleware/requestLogger');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const healthRouter = require('./routes/health');
 const authRouter = require('./routes/auth');
+const passwordRouter = require('./routes/password');
 
 /**
  * Создаёт и настраивает экземпляр приложения.
@@ -62,6 +63,8 @@ function createApp() {
   // --- REST API --------------------------------------------------------
   // Маршруты аутентификации: регистрация, подтверждение Email, вход
   app.use('/api/auth', authRouter);
+  // Маршруты работы с паролями: оценка надёжности, смена пароля
+  app.use('/api/password', passwordRouter);
 
   // Корневой маршрут: краткая справка о сервисе и перечень разделов API
   app.get('/', (req, res) => {
@@ -76,10 +79,12 @@ function createApp() {
         healthLive: 'GET /health/live — проверка живости процесса',
         healthReady: 'GET /health/ready — проверка готовности сервиса',
         register: 'POST /api/auth/register — регистрация нового пользователя',
+        passwordStrength: 'POST /api/password/strength — оценка надёжности пароля',
       },
       planned: [
         'GET /api/auth/confirm — подтверждение адреса электронной почты (6-й день)',
         'POST /api/auth/login — вход в систему (7-й день)',
+        'POST /api/password/change — смена пароля (7-й день, после авторизации)',
         'GET /api/cells — управление ячейками хранения (12-й день)',
         'POST /api/orders — приёмка заказа (14-й день)',
       ],

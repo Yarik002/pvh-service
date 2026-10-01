@@ -127,6 +127,22 @@ function oneOf(allowed, { label = 'Значение' } = {}) {
 }
 
 /**
+ * Проверка, что значение отличается от значения другого поля.
+ * Применяется при смене пароля: новый пароль не должен совпадать с текущим.
+ *
+ * @param {string} otherField имя поля для сравнения
+ * @param {{label?: string, otherLabel?: string}} [options]
+ */
+function differsFrom(otherField, { label = 'Значение', otherLabel = 'текущее значение' } = {}) {
+  return (value, allValues = {}) => {
+    if (value === allValues[otherField]) {
+      return fail(`${label} должен отличаться от ${otherLabel}`, 'NOT_DIFFERENT');
+    }
+    return ok(value);
+  };
+}
+
+/**
  * Применяет схему проверки к объекту с данными.
  *
  * Схема — объект вида:
@@ -180,6 +196,7 @@ module.exports = {
   emailPattern,
   passwordStrength,
   matches,
+  differsFrom,
   oneOf,
   validate,
   ok,

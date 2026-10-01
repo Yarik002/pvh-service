@@ -61,7 +61,7 @@ router.post(
   registerLimiter,
   async (req, res, next) => {
     try {
-      const { user, confirmToken } = await authService.register(req.body);
+      const { user, confirmToken, strength } = await authService.register(req.body);
 
       logger.debug(`Токен подтверждения для ${user.email}: ${confirmToken}`);
 
@@ -74,6 +74,12 @@ router.post(
           email: user.email,
           role: user.role,
           isConfirmed: user.isConfirmed,
+        },
+        // Оценка надёжности принятого пароля — рекомендация пользователю
+        passwordStrength: {
+          score: strength.score,
+          level: strength.level,
+          label: strength.label,
         },
         nextStep: 'На адрес электронной почты будет отправлена ссылка для подтверждения аккаунта.',
       });

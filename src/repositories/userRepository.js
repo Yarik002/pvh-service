@@ -28,10 +28,13 @@ function mapRow(row) {
   };
 }
 
-/** Убирает из записи служебные поля (хеш пароля, токен подтверждения). */
+/**
+ * Убирает из записи служебные поля, которые не должны покидать сервер:
+ * хеш пароля и токен подтверждения адреса электронной почты.
+ */
 function toPublic(user) {
   if (!user) return null;
-  const { confirmToken, ...rest } = user;
+  const { confirmToken, passwordHash, ...rest } = user;
   return rest;
 }
 
@@ -113,6 +116,34 @@ function confirm(id) {
   return findById(id);
 }
 
+/**
+ * Обновляет хеш пароля пользователя.
+ *
+ * Выполняется вместе с обновлением отметки времени изменения пароля,
+ * чтобы можно было отследить давность смены пароля.
+ *
+ * @param {number} id идентификатор пользователя
+ * @param {string} passwordHash новый хеш пароля
+ * @returns {object|null} обновлённая запись
+ */
+function updatePasswordHash(id, passwordHash) {
+  getDb()
+    .prepare('UPDATE Users SET password_hash = ?, password_changed_at = datetime(\'now\') WHERE id = ?')
+    .run(passwordHash, id);
+  return findById(id);
+}
+
+/**
+ * Заменяет токен подтверждения (потребуется при повторной отправке письма).
+ * @param {number} id
+ * @param {string} token
+ */
+function updateConfirmToken(id, token) {
+  getDb()
+    .prepare('UPDATE Users SET confirm_token = ? WHERE id = ?')
+    .run(token, id);
+}
+
 /** Возвращает общее количество пользователей (используется в проверках). */
 function count() {
   return getDb().prepare('SELECT COUNT(*) AS n FROM Users').get().n;
@@ -124,6 +155,8 @@ module.exports = {
   findByConfirmToken,
   create,
   confirm,
+  updatePasswordHash,
+  updateConfirmToken,
   count,
   toPublic,
   SAFE_FIELDS,

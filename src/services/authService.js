@@ -19,10 +19,30 @@
 const logger = require('../utils/logger');
 const AppError = require('../utils/AppError');
 const { hashPassword } = require('../utils/password');
+const { analyzePassword, findWeaknessReason } = require('../utils/passwordStrength');
 const { generateUrlSafeToken } = require('../utils/token');
 const { validate } = require('../validators/rules');
 const { registerSchema } = require('../validators/schemas');
 const userRepository = require('../repositories/userRepository');
+
+/**
+ * Проверяет, что пароль не содержит личных данных пользователя.
+ *
+ * Выполняется после проверки полей формы, так как требует одновременно
+ * готовых значений имени и адреса электронной почты.
+ *
+ * @param {string} password проверяемый пароль
+ * @param {{name: string, email: string}} user данные пользователя
+ * @throws {AppError} 400, если пароль содержит имя, фамилию или адрес почты
+ */
+function assertNoPersonalData(password, user) {
+  const reason = findWeaknessReason(password, user);
+  if (reason) {
+    throw AppError.badRequest(reason.message, {
+      password: { code: reason.code, message: reason.message },
+    });
+  }
+}
 
 /**
  * Регистрирует нового пользователя.
@@ -32,12 +52,15 @@ const userRepository = require('../repositories/userRepository');
  * @param {string} payload.email           адрес электронной почты
  * @param {string} payload.password        пароль
  * @param {string} payload.passwordConfirm повтор пароля
- * @returns {Promise<{user: object, confirmToken: string}>}
+ * @returns {Promise<{user: object, confirmToken: string, strength: object}>}
  * @throws {AppError} 400 — данные не прошли проверку; 409 — Email уже занят
  */
 async function register(payload) {
   // Шаг 1. Проверка полей формы
   const data = validate(payload, registerSchema);
+
+  // Шаг 1.1. Проверка, что пароль не содержит личных данных пользователя
+  assertNoPersonalData(data.password, { name: data.name, email: data.email });
 
   // Шаг 2. Проверка уникальности адреса электронной почты
   if (userRepository.findByEmail(data.email)) {
@@ -61,10 +84,16 @@ async function register(payload) {
     confirmToken,
   });
 
-  logger.info(`Зарегистрирован пользователь id=${user.id} (${user.email}), ожидает подтверждения Email`);
+  // Оценка надёжности принятого пароля — возвращается клиенту как рекомендация
+  const strength = analyzePassword(data.password, { name: data.name, email: data.email });
+
+  logger.info(
+    `Зарегистрирован пользователь id=${user.id} (${user.email}), `
+    + `ожидает подтверждения Email; надёжность пароля: ${strength.label} (${strength.score}/100)`,
+  );
 
   // Шаг 5. Хеш пароля и токен не покидают сервер
-  return { user: userRepository.toPublic(user), confirmToken };
+  return { user: userRepository.toPublic(user), confirmToken, strength };
 }
 
 module.exports = { register };
