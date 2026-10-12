@@ -21,6 +21,8 @@
     "seed": "node scripts/seed.js",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "demo": "node scripts/demo.js",
+    "mail:start": "node scripts/start-mailpit.js",
     "db:migrate": "node scripts/migrate.js",
     "db:reset": "node scripts/reset-db.js",
     "check": "node scripts/check-v0.9.js",
