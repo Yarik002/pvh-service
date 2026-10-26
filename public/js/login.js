@@ -23,10 +23,17 @@ document.addEventListener('DOMContentLoaded', function () {
   if (window.PVH_FORM) window.PVH_FORM.watchFields(form);
 
   /**
-   * Показывает предложение подтвердить адрес электронной почты.
-   * @param {HTMLInputElement} emailInput
+   * Показывает одно уведомление с предложением подтвердить адрес
+   * электронной почты и кнопкой повторной отправки письма.
+   *
+   * Уведомление одно: при нажатии кнопки оно не добавляет новые сообщения,
+   * а меняет собственный текст. Иначе при нескольких попытках экран
+   * заполняется одинаковыми предупреждениями.
+   *
+   * @param {HTMLInputElement} emailInput поле с адресом электронной почты
+   * @param {string} [message] текст сообщения от сервера
    */
-  function offerResendConfirmation(emailInput) {
+  function offerResendConfirmation(emailInput, message) {
     var alerts = document.getElementById('alerts');
     if (!alerts) return;
 
@@ -48,8 +55,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var text = document.createElement('p');
     text.style.margin = '4px 0 8px';
-    text.textContent = 'Проверьте почту и перейдите по ссылке из письма. '
-      + 'Если письмо не пришло, запросите новое.';
+    text.textContent = message
+      || 'Проверьте почту и перейдите по ссылке из письма. '
+        + 'Если письмо не пришло, запросите новое.';
 
     var button = document.createElement('button');
     button.className = 'btn btn--secondary btn--sm btn--inline';
@@ -65,28 +73,33 @@ document.addEventListener('DOMContentLoaded', function () {
           var mail = (data && data.confirmationEmail) || {};
 
           if (mail.sent) {
-            button.textContent = 'Письмо отправлено';
-            window.PVH.showAlert('success',
-              'Письмо со ссылкой подтверждения отправлено повторно.', 'Готово');
+            container.className = 'alert alert--success';
+            icon.textContent = '✓';
+            title.textContent = 'Письмо отправлено';
+            text.textContent = 'Проверьте почту и перейдите по ссылке '
+              + 'из письма, чтобы подтвердить адрес.';
+            button.remove();
             return;
           }
 
           // Отправка не настроена либо не удалась: сообщаем об этом прямо,
           // иначе пользователь будет ждать письмо, которого нет
+          title.textContent = 'Не удалось отправить письмо';
+          text.textContent = mail.logged
+            ? 'Отправка писем не настроена. Ссылка для подтверждения '
+              + 'выведена в журнал сервера.'
+            : 'Причина: ' + (mail.error || 'неизвестная ошибка')
+              + '. Попробуйте ещё раз позже.';
           button.disabled = false;
-          button.textContent = 'Отправить письмо повторно';
-
-          window.PVH.showAlert('warning',
-            mail.logged
-              ? 'Отправка писем не настроена. Ссылка для подтверждения выведена '
-                + 'в журнал сервера.'
-              : 'Не удалось отправить письмо' + (mail.error ? ': ' + mail.error : '.'),
-            'Письмо не отправлено');
+          button.textContent = 'Попробовать снова';
         })
         .catch(function (error) {
+          var parsed = window.PVH_API.parseError(error);
+
+          title.textContent = 'Не удалось отправить письмо';
+          text.textContent = 'Причина: ' + parsed.message;
           button.disabled = false;
-          button.textContent = 'Отправить письмо повторно';
-          window.PVH_FORM.reportError(error);
+          button.textContent = 'Попробовать снова';
         });
     });
 
@@ -134,11 +147,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var parsed = window.PVH_API.parseError(error);
 
-        // Адрес электронной почты не подтверждён: предлагаем запросить письмо
+        // Адрес электронной почты не подтверждён: показываем одно
+        // уведомление с кнопкой повторной отправки письма
         if (parsed.code === 'EMAIL_NOT_CONFIRMED') {
           window.PVH.clearAlerts();
-          window.PVH.showAlert('warning', parsed.message, 'Требуется подтверждение адреса');
-          offerResendConfirmation(form.querySelector('[name="email"]'));
+          offerResendConfirmation(form.querySelector('[name="email"]'), parsed.message);
           return;
         }
 
