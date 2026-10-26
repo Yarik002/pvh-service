@@ -22,7 +22,8 @@ const {
   renderConfirmContent,
   renderNotFoundContent,
 } = require('../views/authPages');
-const { optionalAuth } = require('../middleware/authenticate');
+const { renderAdminContent } = require('../views/adminPage');
+const { optionalAuth, requireAuth, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
 
@@ -305,6 +306,148 @@ router.get('/confirm', (req, res, next) => {
   }
 });
 
+/**
+ * GET /admin
+ * Страница администратора: сводка по ПВЗ, пользователи и ячейки.
+ *
+ * Доступна только пользователям с ролью admin. Клиент, открывший адрес,
+ * получит отказ 403 — данные всё равно защищены на уровне API,
+ * но страница не должна открываться даже визуально.
+ */
+router.get(
+  '/admin',
+  requireAuth(),
+  requireRole('admin'),
+  (req, res, next) => {
+    try {
+      const user = toViewUser(req.user);
+
+      const html = renderPage({
+        title: 'Администрирование',
+        path: '/admin',
+        description: 'Сводка по состоянию пункта выдачи, учётные записи '
+          + 'и справочник ячеек хранения.',
+        content: renderAdminContent(),
+        isAuthenticated: true,
+        user,
+        scripts: ['/js/api.js', '/js/admin.js'],
+      });
+
+      res.status(200).type('html').send(html);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * Содержимое страницы раздела, который ещё не реализован.
+ *
+ * Ссылки на такие разделы уже есть в меню, поэтому вместо ошибки 404
+ * пользователь видит понятное сообщение с указанием этапа разработки.
+ *
+ * @param {{title: string, description: string, plannedStage: string}} options
+ * @returns {string}
+ */
+function renderPlannedContent({ title, description, plannedStage }) {
+  return `      <div class="page-header">
+        <h1>${title}</h1>
+        <p class="page-header__subtitle">${description}</p>
+      </div>
+
+      <div class="alert alert--info" role="status">
+        <span class="alert__icon" aria-hidden="true">i</span>
+        <div class="alert__body">
+          <strong class="alert__title">Раздел находится в разработке</strong>
+          Он будет реализован на этапе «${plannedStage}» согласно плану практики.
+          Сейчас доступны регистрация, вход, подтверждение адреса
+          и административная сводка.
+        </div>
+      </div>
+
+      <p>
+        <a class="btn btn--inline" href="/">На главную</a>
+        <a class="btn btn--secondary btn--inline" href="/admin">Администрирование</a>
+      </p>`;
+}
+
+/**
+ * GET /orders
+ * Страница заказов клиента (реализуется на 16–17-м дне практики).
+ */
+router.get('/orders', requireAuth(), (req, res, next) => {
+  try {
+    const html = renderPage({
+      title: 'Мои заказы',
+      path: '/orders',
+      content: renderPlannedContent({
+        title: 'Мои заказы',
+        description: 'Список ваших заказов с фильтрацией по состоянию.',
+        plannedStage: 'дни 16–17, списки заказов',
+      }),
+      isAuthenticated: true,
+      user: toViewUser(req.user),
+    });
+
+    res.status(200).type('html').send(html);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /cells
+ * Страница ячеек хранения (реализуется на 12–13-м дне практики).
+ */
+router.get('/cells', requireAuth(), (req, res, next) => {
+  try {
+    const html = renderPage({
+      title: 'Ячейки хранения',
+      path: '/cells',
+      content: renderPlannedContent({
+        title: 'Ячейки хранения',
+        description: 'Занятость ячеек на складе пункта выдачи.',
+        plannedStage: 'дни 12–13, управление ячейками',
+      }),
+      isAuthenticated: true,
+      user: toViewUser(req.user),
+    });
+
+    res.status(200).type('html').send(html);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /receive
+ * Страница приёмки товара (реализуется на 15-м дне практики).
+ */
+router.get(
+  '/receive',
+  requireAuth(),
+  requireRole('admin'),
+  (req, res, next) => {
+    try {
+      const html = renderPage({
+        title: 'Приёмка товара',
+        path: '/receive',
+        content: renderPlannedContent({
+          title: 'Приёмка товара',
+          description: 'Оформление поступления посылки с назначением ячейки.',
+          plannedStage: 'дни 14–15, приёмка заказов',
+        }),
+        isAuthenticated: true,
+        user: toViewUser(req.user),
+      });
+
+      res.status(200).type('html').send(html);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // --- Обработчики адресов файлов --------------------------------------------
 // Ссылки вида /login.html и /register.html встречаются в разметке шапки
 // и подвала. Они перенаправляются на соответствующие страницы, чтобы адреса
@@ -316,6 +459,7 @@ const EXTENSION_REDIRECTS = {
   '/register.html': '/register',
   '/confirm.html': '/confirm',
   '/template-demo.html': '/template-demo',
+  '/admin.html': '/admin',
 };
 
 Object.entries(EXTENSION_REDIRECTS).forEach(([from, to]) => {

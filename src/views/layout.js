@@ -35,10 +35,10 @@ function escapeHtml(value) {
  */
 const NAVIGATION = [
   { path: '/', title: 'Главная', roles: 'public' },
-  { path: '/orders.html', title: 'Мои заказы', roles: 'user' },
-  { path: '/cells.html', title: 'Ячейки', roles: 'user' },
-  { path: '/receive.html', title: 'Приёмка товара', roles: 'admin' },
-  { path: '/admin.html', title: 'Администрирование', roles: 'admin' },
+  { path: '/orders', title: 'Мои заказы', roles: 'user' },
+  { path: '/cells', title: 'Ячейки', roles: 'user' },
+  { path: '/receive', title: 'Приёмка товара', roles: 'admin' },
+  { path: '/admin', title: 'Администрирование', roles: 'admin' },
 ];
 
 /**

@@ -188,19 +188,19 @@ test('роль записывается в атрибут data-role', () => {
 
 test('текущий раздел помечается как активный', () => {
   const html = layout.renderPage({
-    title: 'Заказы', path: '/orders.html', content: '',
+    title: 'Заказы', path: '/orders', content: '',
     isAuthenticated: true, user: { name: 'Клиент', email: 'c@mail.ru', role: 'client' },
   });
 
-  assert.match(html, /href="\/orders\.html" aria-current="page"/);
+  assert.match(html, /href="\/orders" aria-current="page"/);
 });
 
 test('функция isActive определяет активный раздел', () => {
   assert.equal(layout.isActive('/', '/'), true);
   assert.equal(layout.isActive('/index.html', '/'), true);
-  assert.equal(layout.isActive('/orders.html', '/orders.html'), true);
-  assert.equal(layout.isActive('/cells.html', '/orders.html'), false);
-  assert.equal(layout.isActive('/login.html', '/'), false);
+  assert.equal(layout.isActive('/orders', '/orders'), true);
+  assert.equal(layout.isActive('/cells', '/orders'), false);
+  assert.equal(layout.isActive('/login', '/'), false);
 });
 
 // ---------------------------------------------------------------------------
