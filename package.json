@@ -38,7 +38,8 @@
     "mail:check": "node scripts/check-mail.js",
     "finish-day": "node scripts/finish-day.js",
     "test": "node scripts/run-tests.js",
-    "test:builtin": "node --test \"tests/*.test.js\""
+    "test:builtin": "node --test \"tests/*.test.js\"",
+    "mail:test": "node scripts/test-send.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
