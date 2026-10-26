@@ -64,6 +64,36 @@ document.addEventListener('DOMContentLoaded', function () {
     button.type = 'button';
     button.textContent = 'Отправить письмо повторно';
 
+    /**
+     * Создаёт ссылку на локальный веб-ящик.
+     *
+     * Если письма принимает перехватчик внутри Docker, они не попадают
+     * в обычную почту. Без такой ссылки пользователь ищет письмо
+     * в своём почтовом ящике и не находит.
+     *
+     * @param {string} url адрес ящика
+     * @returns {HTMLAnchorElement}
+     */
+    function mailboxLink(url) {
+      var link = document.createElement('a');
+      link.className = 'btn btn--sm btn--inline';
+      link.style.marginLeft = '8px';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Открыть почтовый ящик';
+      return link;
+    }
+
+    /** Возвращает адрес локального ящика, сохранённый после регистрации. */
+    function storedMailboxUrl() {
+      try {
+        return window.sessionStorage.getItem('pvh.mailboxUrl') || '';
+      } catch (error) {
+        return '';
+      }
+    }
+
     button.addEventListener('click', function () {
       button.disabled = true;
       button.textContent = 'Отправка…';
@@ -73,12 +103,20 @@ document.addEventListener('DOMContentLoaded', function () {
           var mail = (data && data.confirmationEmail) || {};
 
           if (mail.sent) {
+            var mailbox = mail.mailboxUrl || storedMailboxUrl();
+
             container.className = 'alert alert--success';
             icon.textContent = '✓';
             title.textContent = 'Письмо отправлено';
-            text.textContent = 'Проверьте почту и перейдите по ссылке '
-              + 'из письма, чтобы подтвердить адрес.';
+            text.textContent = mailbox
+              ? 'Письмо находится в локальном почтовом ящике — откройте '
+                + 'его и перейдите по ссылке из письма.'
+              : 'Проверьте почту и перейдите по ссылке из письма, '
+                + 'чтобы подтвердить адрес.';
+
             button.remove();
+
+            if (mailbox) body.appendChild(mailboxLink(mailbox));
             return;
           }
 

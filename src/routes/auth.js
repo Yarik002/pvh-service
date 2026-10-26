@@ -16,6 +16,7 @@
 const express = require('express');
 
 const logger = require('../utils/logger');
+const config = require('../config');
 const rateLimit = require('../middleware/rateLimit');
 const authService = require('../services/authService');
 const confirmationService = require('../services/confirmationService');
@@ -132,6 +133,9 @@ router.post(
           logged: loggedOnly,
           status: delivery.status,
           error: delivery.error,
+          // Адрес локального веб-ящика: письмо не ушло в интернет,
+          // а осталось там, и пользователю нужно знать, где его искать
+          mailboxUrl: config.mail.mailboxUrl || null,
         },
         nextStep: reallySent
           ? 'Перейдите по ссылке из письма, чтобы активировать учётную запись.'
@@ -183,6 +187,7 @@ router.post(
           logged: loggedOnly,
           status: delivery.status,
           error: delivery.error,
+          mailboxUrl: config.mail.mailboxUrl || null,
         },
       });
     } catch (error) {
