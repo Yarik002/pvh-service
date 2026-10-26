@@ -25,6 +25,7 @@
     "mail:start": "node scripts/start-mailpit.js",
     "db:migrate": "node scripts/migrate.js",
     "db:reset": "node scripts/reset-db.js",
+    "db:clean": "node scripts/clean-db.js",
     "check": "node scripts/check-v0.9.js",
     "check:v01": "node scripts/check-v0.1.js",
     "check:v02": "node scripts/check-v0.2.js",
