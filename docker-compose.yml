@@ -61,6 +61,14 @@ services:
       # Письма принимает перехватчик mailpit на порту 8025.
       MAIL_MAILBOX_URL: "http://127.0.0.1:8025"
 
+      # --- Отправка через HTTPS-API почтового сервиса ------------------
+      # Применяется, когда SMTP блокируется провайдером. Чтобы включить,
+      # задайте MAIL_TRANSPORT=api, название сервиса и ключ доступа.
+      # Значения можно передать через файл .env.docker (env_file выше).
+      MAIL_API_PROVIDER: ${MAIL_API_PROVIDER:-}
+      MAIL_API_KEY: ${MAIL_API_KEY:-}
+      MAIL_API_TIMEOUT: ${MAIL_API_TIMEOUT:-20000}
+
       # Учётная запись администратора создаётся при первом запуске
       ADMIN_EMAIL: admin@pvh.local
       ADMIN_NAME: "Администратор ПВЗ"

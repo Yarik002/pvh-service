@@ -33,9 +33,18 @@ async function main() {
   console.log(`Адрес приложения:               ${config.appBaseUrl}`);
   console.log(`Срок действия ссылки:           ${config.mail.confirmTokenTtlHours} ч`);
 
-  const settings = mailer.checkSmtpSettings();
-  if (!settings.ok) {
-    console.log(`\nНе заполнены обязательные настройки: ${settings.missing.join(', ')}`);
+  if (mode === 'api') {
+    console.log(`Сервис отправки:                ${config.mail.api.provider}`);
+    console.log(`Ключ API:                       ${config.mail.api.key ? 'задан' : '(не задан)'}`);
+  }
+
+  // Настройки SMTP проверяются только для режима smtp:
+  // при отправке через HTTPS-API они не используются
+  if (mode === 'smtp') {
+    const settings = mailer.checkSmtpSettings();
+    if (!settings.ok) {
+      console.log(`\nНе заполнены обязательные настройки: ${settings.missing.join(', ')}`);
+    }
   }
 
   // --- Частые ошибки в настройках --------------------------------------
@@ -76,15 +85,42 @@ async function main() {
 
   if (mode === 'log') {
     console.log('\nПисьма не отправляются, а выводятся в журнал сервера.');
-    console.log('Чтобы включить реальную отправку, укажите в файле .env:');
+    console.log('Чтобы включить реальную отправку, укажите в файле .env один из вариантов.');
+    console.log('');
+    console.log('Вариант через SMTP:');
     console.log('  MAIL_TRANSPORT=smtp');
     console.log('  SMTP_HOST=<адрес почтового сервера>');
     console.log('  SMTP_PORT=465');
     console.log('  SMTP_SECURE=true');
     console.log('  SMTP_USER=<логин>');
     console.log('  SMTP_PASSWORD=<пароль приложения>');
+    console.log('');
+    console.log('Вариант через HTTPS-API (когда SMTP блокируется провайдером):');
+    console.log('  MAIL_TRANSPORT=api');
+    console.log('  MAIL_API_PROVIDER=resend');
+    console.log('  MAIL_API_KEY=<ключ из личного кабинета сервиса>');
+    console.log('  MAIL_FROM=<адрес, подтверждённый в сервисе>');
     console.log('='.repeat(74));
     return 0;
+  }
+
+  if (mode === 'api') {
+    console.log('\nПроверка HTTPS-API почтового сервиса…');
+
+    const result = await mailer.verifyConnection();
+
+    if (result.ok) {
+      console.log('Сервис доступен, ключ API принят.');
+      console.log('\nНастройки корректны — письма будут отправляться через сервис.');
+    } else {
+      console.log('Отправка письма невозможна.');
+      console.log(`Причина: ${result.error}`);
+      console.log('');
+      console.log('Проверьте значения MAIL_API_PROVIDER, MAIL_API_KEY и MAIL_FROM.');
+    }
+
+    console.log('='.repeat(74));
+    return result.ok ? 0 : 1;
   }
 
   console.log(`\nПочтовый сервер: ${config.mail.smtp.host}:${config.mail.smtp.port}`

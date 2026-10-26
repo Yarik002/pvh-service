@@ -109,6 +109,24 @@ const config = {
      */
     mailboxUrl: readString('MAIL_MAILBOX_URL', ''),
 
+    /**
+     * Отправка через HTTPS-API почтового сервиса.
+     *
+     * Применяется, когда протокол SMTP блокируется провайдером: TCP-порт
+     * открывается, но почтовый сервер не отвечает. HTTPS-запросы при этом
+     * проходят, поэтому письмо можно отправить через сервис Resend или Brevo.
+     *
+     * Включается параметром MAIL_TRANSPORT=api.
+     */
+    api: {
+      /** Название сервиса: resend или brevo */
+      provider: readString('MAIL_API_PROVIDER', '').toLowerCase(),
+      /** Ключ доступа из личного кабинета сервиса */
+      key: readString('MAIL_API_KEY', ''),
+      /** Таймаут ожидания ответа, мс */
+      timeout: readInt('MAIL_API_TIMEOUT', 20000),
+    },
+
     smtp: {
       host: readString('SMTP_HOST', ''),
       port: readInt('SMTP_PORT', 465),

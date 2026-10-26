@@ -21,6 +21,7 @@
 const config = require('../config');
 const logger = require('../utils/logger');
 const { SmtpClient, SmtpError } = require('./smtpClient');
+const apiMailer = require('./apiMailer');
 
 /**
  * Сбрасывает кэш настроек.
@@ -74,16 +75,26 @@ function checkSmtpSettings() {
 /** Возвращает текущий режим отправки почты. */
 function getTransport() {
   const mode = config.mail.transport;
-  if (!['log', 'smtp'].includes(mode)) {
+  if (!['log', 'smtp', 'api'].includes(mode)) {
     logger.warn(`Неизвестный режим отправки почты «${mode}», используется режим log`);
     return 'log';
   }
+
   // Если выбран режим smtp, но адрес сервера не указан, работаем в режиме log
   if (mode === 'smtp' && !checkSmtpSettings().ok) {
     logger.warn('Режим отправки smtp выбран, но адрес почтового сервера не указан '
       + '(SMTP_HOST) — письма будут выводиться в журнал');
     return 'log';
   }
+
+  // То же для отправки через HTTPS-API: без ключа и сервиса письма не уйдут
+  if (mode === 'api' && !apiMailer.checkApiSettings().ok) {
+    logger.warn('Режим отправки api выбран, но настройки не заполнены '
+      + `(${apiMailer.checkApiSettings().missing.join(', ')}) — `
+      + 'письма будут выводиться в журнал');
+    return 'log';
+  }
+
   return mode;
 }
 
@@ -122,6 +133,12 @@ async function sendMail(letter) {
     logEmail(letter);
     logger.info(`Письмо для ${letter.to.address} выведено в журнал (режим log)`);
     return { status: DELIVERY_STATUS.LOGGED, messageId: null, error: null };
+  }
+
+  // Отправка через HTTPS-API почтового сервиса: применяется, когда
+  // протокол SMTP блокируется провайдером
+  if (transport === 'api') {
+    return apiMailer.sendMail(letter);
   }
 
   const client = new SmtpClient({
@@ -203,6 +220,17 @@ async function verifyConnection() {
       mode: 'log',
       error: null,
       capabilities: [],
+    };
+  }
+
+  // Проверка отправки через HTTPS-API
+  if (transport === 'api') {
+    const result = await apiMailer.verifyConnection();
+    return {
+      ok: result.ok,
+      mode: 'api',
+      error: result.error,
+      capabilities: result.provider ? [`Сервис: ${result.provider}`] : [],
     };
   }
 
