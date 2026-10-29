@@ -16,6 +16,56 @@ const { getDb } = require('../db/connection');
 /** Максимальный номер ячейки: ограничение, чтобы избежать случайных значений. */
 const MAX_CELL_NUMBER = 999;
 
+/** Допустимые состояния ячейки. */
+const CELL_STATUSES = ['Свободна', 'Занята'];
+
+/**
+ * Проверяет идентификатор ячейки из адреса запроса.
+ *
+ * Без проверки запрос /api/cells/abc превращался в поиск ячейки с номером NaN
+ * и возвращал непонятное сообщение «ячейка NaN не найдена».
+ *
+ * @param {string|number} raw значение из адреса
+ * @returns {number} идентификатор
+ * @throws {AppError} 400 — идентификатор не является целым положительным числом
+ */
+function parseCellId(raw) {
+  const text = String(raw ?? '').trim();
+  const id = /^\d+$/.test(text) ? Number.parseInt(text, 10) : Number.NaN;
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw AppError.badRequest('Идентификатор ячейки должен быть целым положительным числом', {
+      id: { code: 'INVALID', message: 'Укажите целое положительное число' },
+    });
+  }
+  return id;
+}
+
+/**
+ * Сводка по состоянию склада.
+ *
+ * Все показатели считаются одним запросом к базе данных, поэтому они
+ * согласованы между собой: сумма свободных и занятых всегда равна общему числу.
+ *
+ * @returns {{total: number, free: number, busy: number, occupancyPercent: number,
+ *            firstFreeNumber: number|null, generatedAt: string}}
+ */
+function getSummary() {
+  const counts = cellRepository.getCounts();
+
+  return {
+    total: counts.total,
+    free: counts.free,
+    busy: counts.busy,
+    // Заполненность склада в процентах — удобно для отображения
+    occupancyPercent: counts.total > 0 ? Math.round((counts.busy / counts.total) * 100) : 0,
+    // Номер первой свободной ячейки: именно она будет назначена заказу
+    // при автоматическом выборе (13-й день)
+    firstFreeNumber: counts.firstFreeNumber,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 /**
  * Возвращает список ячеек со сводкой по состоянию.
  *
@@ -28,44 +78,53 @@ function listCells({ status, withOrders = false } = {}) {
   let cells = withOrders ? cellRepository.findAllWithOrders() : cellRepository.findAll();
 
   if (status) {
-    const allowed = ['Свободна', 'Занята'];
-    if (!allowed.includes(status)) {
+    if (!CELL_STATUSES.includes(status)) {
       throw AppError.badRequest(
         `Недопустимое значение фильтра состояния: «${status}». `
-        + `Допустимые значения: ${allowed.join(', ')}.`,
+        + `Допустимые значения: ${CELL_STATUSES.join(', ')}.`,
         { status: { code: 'NOT_ALLOWED', message: 'Допустимые значения: Свободна, Занята' } },
       );
     }
     cells = cells.filter((cell) => cell.status === status);
   }
 
-  const free = cellRepository.countByStatus('Свободна');
-  const busy = cellRepository.countByStatus('Занята');
+  return { cells, summary: getSummary() };
+}
+
+/**
+ * Возвращает только свободные ячейки, отсортированные по номеру.
+ *
+ * Используется при приёмке заказа: администратор выбирает ячейку
+ * из этого списка, а при автоматическом выборе берётся первая из них.
+ *
+ * @returns {{cells: object[], count: number, firstFreeNumber: number|null}}
+ */
+function listFreeCells() {
+  const cells = cellRepository.findFree();
 
   return {
     cells,
-    summary: {
-      total: cellRepository.count(),
-      free,
-      busy,
-      // Заполненность склада в процентах — удобно для отображения
-      occupancyPercent: cellRepository.count() > 0
-        ? Math.round((busy / cellRepository.count()) * 100)
-        : 0,
-    },
+    count: cells.length,
+    firstFreeNumber: cells.length > 0 ? cells[0].cellNumber : null,
   };
 }
 
 /**
  * Возвращает сведения об одной ячейке.
+ *
  * @param {number} id
+ * @param {{withOrder?: boolean}} [options] withOrder — добавить сведения
+ *   о заказе, который лежит в ячейке (только для администратора)
  * @returns {object}
  * @throws {AppError} 404 — ячейка не найдена
  */
-function getCell(id) {
+function getCell(id, { withOrder = false } = {}) {
   const cell = cellRepository.findById(id);
   if (!cell) throw AppError.notFound(`Ячейка с идентификатором ${id} не найдена`);
-  return cell;
+
+  if (!withOrder) return cell;
+
+  return { ...cell, order: cellRepository.findActiveOrder(id) };
 }
 
 /**
@@ -123,11 +182,10 @@ function setCellStatus(id, status) {
   const cell = cellRepository.findById(id);
   if (!cell) throw AppError.notFound(`Ячейка с идентификатором ${id} не найдена`);
 
-  const allowed = ['Свободна', 'Занята'];
-  if (!allowed.includes(status)) {
+  if (!CELL_STATUSES.includes(status)) {
     throw AppError.badRequest(
-      `Недопустимое состояние ячейки: «${status}». Допустимые значения: ${allowed.join(', ')}.`,
-      { status: { code: 'NOT_ALLOWED', message: `Допустимые значения: ${allowed.join(', ')}` } },
+      `Недопустимое состояние ячейки: «${status}». Допустимые значения: ${CELL_STATUSES.join(', ')}.`,
+      { status: { code: 'NOT_ALLOWED', message: `Допустимые значения: ${CELL_STATUSES.join(', ')}` } },
     );
   }
 
@@ -183,4 +241,15 @@ function deleteCell(id) {
   logger.info(`Администратор удалил ячейку номер ${cell.cellNumber}`);
 }
 
-module.exports = { listCells, getCell, addCell, setCellStatus, deleteCell, MAX_CELL_NUMBER };
+module.exports = {
+  listCells,
+  listFreeCells,
+  getSummary,
+  getCell,
+  parseCellId,
+  addCell,
+  setCellStatus,
+  deleteCell,
+  MAX_CELL_NUMBER,
+  CELL_STATUSES,
+};

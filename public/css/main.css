@@ -627,6 +627,50 @@ img { max-width: 100%; height: auto; }
   color: var(--color-text-muted);
 }
 
+/* Сетка ячеек хранения (страница «Ячейки хранения», 12-й день).
+   Плитки перестраиваются под ширину экрана: на телефоне — по 2-3 в ряд,
+   на компьютере — по 5 и более */
+.cells-toolbar {
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.cell-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.cell-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 88px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+}
+
+button.cell-tile { cursor: pointer; }
+button.cell-tile:hover { background: var(--color-surface-alt); }
+
+.cell-tile--free { border-left-color: var(--color-success); }
+.cell-tile--busy { border-left-color: var(--color-warning); background: var(--color-warning-bg); }
+
+.cell-tile__number { font-size: 18px; font-weight: 600; }
+.cell-tile__status { font-size: 14px; color: var(--color-text-muted); }
+.cell-tile--busy .cell-tile__status { color: var(--color-warning); }
+.cell-tile__track { font-size: 13px; word-break: break-all; }
+
 /* ---------------------------------------------------------------------
    9. Шапка сайта и навигация
    --------------------------------------------------------------------- */

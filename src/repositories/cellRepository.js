@@ -7,6 +7,7 @@
  */
 
 const { getDb } = require('../db/connection');
+const { toIso } = require('../utils/datetime');
 
 /** Приводит строку базы данных к удобному для клиента виду. */
 function mapRow(row) {
@@ -123,6 +124,62 @@ function count() {
 }
 
 /**
+ * Возвращает количество ячеек по состояниям и номер первой свободной.
+ *
+ * Все значения получаются одним запросом, поэтому они согласованы:
+ * между подсчётом свободных и занятых ячеек состояние не может измениться.
+ *
+ * @returns {{total: number, free: number, busy: number, firstFreeNumber: number|null}}
+ */
+function getCounts() {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(status = 'Свободна'), 0) AS free,
+              COALESCE(SUM(status = 'Занята'), 0) AS busy,
+              MIN(CASE WHEN status = 'Свободна' THEN cell_number END) AS first_free
+         FROM Storage_Cells`,
+    )
+    .get();
+
+  return {
+    total: row.total,
+    free: row.free,
+    busy: row.busy,
+    firstFreeNumber: row.first_free ?? null,
+  };
+}
+
+/**
+ * Возвращает заказ, который сейчас лежит в ячейке, вместе с получателем.
+ * Используется администратором при просмотре ячейки.
+ *
+ * @param {number} cellId
+ * @returns {object|null}
+ */
+function findActiveOrder(cellId) {
+  const row = getDb()
+    .prepare(
+      `SELECT o.id, o.track_number, o.description, o.received_at,
+              u.id AS user_id, u.name AS user_name, u.email AS user_email
+         FROM Orders o
+         JOIN Users u ON u.id = o.user_id
+        WHERE o.cell_id = ? AND o.status = 'Готов к выдаче'`,
+    )
+    .get(cellId);
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    trackNumber: row.track_number,
+    description: row.description,
+    receivedAt: toIso(row.received_at),
+    client: { id: row.user_id, name: row.user_name, email: row.user_email },
+  };
+}
+
+/**
  * Возвращает наибольший номер ячейки.
  * Используется при создании следующей ячейки и в сценарии начальной настройки.
  */
@@ -141,5 +198,7 @@ module.exports = {
   remove,
   countByStatus,
   count,
+  getCounts,
+  findActiveOrder,
   getMaxCellNumber,
 };

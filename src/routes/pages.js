@@ -23,6 +23,7 @@ const {
   renderNotFoundContent,
 } = require('../views/authPages');
 const { renderAdminContent } = require('../views/adminPage');
+const { renderCellsContent } = require('../views/cellsPage');
 const { optionalAuth, requireAuth, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -397,20 +398,19 @@ router.get('/orders', requireAuth(), (req, res, next) => {
 
 /**
  * GET /cells
- * Страница ячеек хранения (реализуется на 12–13-м дне практики).
+ * Страница ячеек хранения: сводка по складу и состояние каждой ячейки.
+ * Администратор дополнительно видит трек-номера заказов в ячейках.
  */
 router.get('/cells', requireAuth(), (req, res, next) => {
   try {
     const html = renderPage({
       title: 'Ячейки хранения',
       path: '/cells',
-      content: renderPlannedContent({
-        title: 'Ячейки хранения',
-        description: 'Занятость ячеек на складе пункта выдачи.',
-        plannedStage: 'дни 12–13, управление ячейками',
-      }),
+      description: 'Актуальное состояние ячеек хранения на складе пункта выдачи.',
+      content: renderCellsContent({ isAdmin: req.user.role === 'admin' }),
       isAuthenticated: true,
       user: toViewUser(req.user),
+      scripts: ['/js/api.js', '/js/cells.js'],
     });
 
     res.status(200).type('html').send(html);

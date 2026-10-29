@@ -178,6 +178,21 @@
       return request('GET', '/cells' + (query ? '?' + query : ''));
     },
 
+    /** Только свободные ячейки хранения. */
+    freeCells: function () {
+      return request('GET', '/cells/free');
+    },
+
+    /** Сводка по складу: всего, свободно, занято, заполненность. */
+    cellsSummary: function () {
+      return request('GET', '/cells/summary');
+    },
+
+    /** Сведения об одной ячейке (администратор видит заказ в ячейке). */
+    cell: function (id) {
+      return request('GET', '/cells/' + encodeURIComponent(id));
+    },
+
     /** Сводка по состоянию ПВЗ (только администратор). */
     adminOverview: function () {
       return request('GET', '/admin/overview');
