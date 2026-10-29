@@ -14,13 +14,14 @@
  * из модуля src/middleware/authenticate.js. При попытке клиента обратиться
  * к административному маршруту возвращается ошибка 403 Forbidden.
  *
- * Порядок маршрутов важен: адреса /free и /summary объявлены раньше /:id,
+ * Порядок маршрутов важен: адреса /free, /summary и /suggest объявлены раньше /:id,
  * иначе слово «free» было бы принято за идентификатор ячейки.
  */
 
 const express = require('express');
 
 const cellService = require('../services/cellService');
+const cellAssignment = require('../services/cellAssignment');
 const { requireAuth, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -125,6 +126,38 @@ router.get('/free', requireAuth(), (req, res, next) => {
 router.get('/summary', requireAuth(), (req, res, next) => {
   try {
     res.status(200).json({ success: true, summary: cellService.getSummary() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/cells/suggest
+ * Предварительный выбор ячейки для заказа: какая ячейка будет назначена.
+ * Ячейка при этом НЕ занимается — это делает приёмка заказа (14-й день).
+ *
+ * Доступ: только администратор (выбор ячейки — часть приёмки заказа).
+ *
+ * Параметры запроса:
+ *   mode       — auto (первая свободная, по умолчанию) или manual;
+ *   cellId     — идентификатор ячейки для ручного выбора;
+ *   cellNumber — номер ячейки для ручного выбора.
+ *
+ * Ответы:
+ *   200 — ячейка найдена: { mode, cell, message };
+ *   400 — неверный способ выбора или ячейка не указана;
+ *   404 — выбранной ячейки нет;
+ *   409 — выбранная ячейка занята (CELL_BUSY) или свободных нет (NO_FREE_CELLS).
+ */
+router.get('/suggest', requireAuth(), requireRole('admin'), (req, res, next) => {
+  try {
+    const choice = cellAssignment.chooseCell({
+      mode: req.query.mode,
+      cellId: req.query.cellId,
+      cellNumber: req.query.cellNumber,
+    });
+
+    res.status(200).json({ success: true, ...choice });
   } catch (error) {
     next(error);
   }

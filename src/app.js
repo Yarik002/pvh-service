@@ -109,6 +109,7 @@ function createApp() {
         cellsFree: 'GET /api/cells/free — только свободные ячейки',
         cellsSummary: 'GET /api/cells/summary — сводка по складу',
         cell: 'GET /api/cells/:id — сведения об одной ячейке',
+        cellSuggest: 'GET /api/cells/suggest?mode=auto|manual — выбор ячейки для заказа (администратор)',
         adminOverview: 'GET /api/admin/overview — сводка по ПВЗ (только администратор)',
         adminUsers: 'GET /api/admin/users — список пользователей (только администратор)',
       },
