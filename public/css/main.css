@@ -33,10 +33,13 @@
   --color-primary-contrast: #ffffff;
   --color-success: #1e7e34;
   --color-success-bg: #e8f5e9;
-  --color-warning: #b26a00;
+  /* Оттенок подобран по контрасту 4,5:1 (рекомендация WCAG AA):
+     прежний #b26a00 на светлом фоне давал только 3,9:1 */
+  --color-warning: #995c00;
   --color-warning-bg: #fff4e5;
   --color-danger: #c62828;
   --color-danger-bg: #fdecea;
+  --color-danger-contrast: #ffffff;
   --color-info-bg: #e8f0fe;
 
   /* Размеры и отступы */
@@ -85,6 +88,9 @@
   --color-warning-bg: #3a2f1a;
   --color-danger: #f28b82;
   --color-danger-bg: #3a2222;
+  /* На светло-красной кнопке в тёмной теме белый текст нечитаем,
+     поэтому текст кнопки удаления делается тёмным */
+  --color-danger-contrast: #12141a;
   --color-info-bg: #1f2b3d;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 12px rgba(0, 0, 0, .35);
@@ -108,8 +114,23 @@
     --color-warning-bg: #3a2f1a;
     --color-danger: #f28b82;
     --color-danger-bg: #3a2222;
+    --color-danger-contrast: #12141a;
     --color-info-bg: #1f2b3d;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 12px rgba(0, 0, 0, .35);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, .55);
   }
+}
+
+/* Плавная смена цветов при переключении темы.
+   Класс добавляется сценарием layout.js только на время переключения,
+   чтобы не замедлять остальные действия на странице */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 250ms ease, color 250ms ease,
+              border-color 250ms ease, box-shadow 250ms ease !important;
 }
 
 /* ---------------------------------------------------------------------
@@ -135,6 +156,10 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+
+  /* Тема переключается мгновенно, без плавной смены цветов */
+  .theme-transition,
+  .theme-transition * { transition: none !important; }
 }
 
 body {
@@ -301,7 +326,7 @@ img { max-width: 100%; height: auto; }
 
 .btn--secondary:hover { background: var(--color-surface-alt); }
 
-.btn--danger { background: var(--color-danger); color: #fff; }
+.btn--danger { background: var(--color-danger); color: var(--color-danger-contrast); }
 .btn--danger:hover { filter: brightness(.92); }
 
 .btn--block { width: 100%; }

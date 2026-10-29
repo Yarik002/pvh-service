@@ -150,7 +150,11 @@ function renderPage(options) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="${escapeHtml(description)}">
   <meta name="theme-color" content="#1a56db">
+  <meta name="color-scheme" content="light dark">
   <title>${escapeHtml(fullTitle)}</title>
+  <!-- Тема применяется до загрузки стилей и отрисовки страницы,
+       поэтому сценарий подключён без defer: так нет мерцания светлой темы -->
+  <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/main.css">
   <script src="/js/layout.js" defer></script>
 ${scriptTags}
@@ -176,7 +180,9 @@ ${renderNavigation({ path, role, isAuthenticated })}
 
       <div class="header__actions">
         <button class="header__theme" type="button" id="theme-toggle"
-                aria-pressed="false" aria-label="Переключить тему оформления"></button>
+                aria-pressed="false" aria-label="Переключить тему оформления"
+                title="Переключить тему оформления"><span aria-hidden="true">◐</span></button>
+        <span class="visually-hidden" id="theme-status" aria-live="polite"></span>
 ${renderUserArea({ isAuthenticated, user })}
       </div>
     </div>
@@ -261,12 +267,12 @@ function renderHomeContent({ isAuthenticated = false, user = null } = {}) {
       text: 'Войдите, чтобы отслеживать свои заказы и получать уведомления.',
     },
     {
-      href: '/orders.html',
+      href: '/orders',
       title: 'Мои заказы',
       text: 'Статусы посылок, фильтрация по состоянию и сортировка по датам.',
     },
     {
-      href: '/cells.html',
+      href: '/cells',
       title: 'Ячейки хранения',
       text: 'Сведения о занятости ячеек на складе пункта выдачи.',
     },

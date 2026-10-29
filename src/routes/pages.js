@@ -460,6 +460,9 @@ const EXTENSION_REDIRECTS = {
   '/confirm.html': '/confirm',
   '/template-demo.html': '/template-demo',
   '/admin.html': '/admin',
+  '/orders.html': '/orders',
+  '/cells.html': '/cells',
+  '/receive.html': '/receive',
 };
 
 Object.entries(EXTENSION_REDIRECTS).forEach(([from, to]) => {

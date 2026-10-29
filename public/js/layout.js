@@ -11,80 +11,133 @@
 (function () {
   'use strict';
 
-  /** Ключ, под которым выбранная тема сохраняется в localStorage. */
+  /**
+   * Ключ, под которым выбранная тема сохраняется в localStorage.
+   * Совпадает с ключом в модуле theme.js.
+   */
   var THEME_KEY = 'pvh.theme';
 
+  /** Сколько длится плавная смена цветов при переключении темы, мс. */
+  var THEME_TRANSITION_MS = 300;
+
   /**
-   * Применяет тему оформления.
-   * @param {'light'|'dark'} theme
+   * Модуль темы (public/js/theme.js). Он подключается в <head> раньше
+   * этого файла и к моменту загрузки страницы уже применил тему.
    */
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.style.colorScheme = theme;
+  function themeModule() {
+    return window.PVH_THEME || null;
+  }
 
+  /**
+   * Обновляет вид кнопки: значок, подсказку и состояние для программ
+   * чтения с экрана. На кнопке показывается текущий режим, а в подсказке —
+   * какой режим включится по нажатию.
+   *
+   * @param {'light'|'dark'|'system'} mode
+   */
+  function updateThemeButton(mode) {
     var button = document.getElementById('theme-toggle');
-    if (button) {
-      var isDark = theme === 'dark';
-      button.setAttribute('aria-pressed', String(isDark));
-      button.setAttribute('title', isDark ? 'Включить светлую тему' : 'Включить тёмную тему');
-      button.setAttribute('aria-label', isDark ? 'Включить светлую тему' : 'Включить тёмную тему');
-      button.innerHTML = '<span aria-hidden="true">' + (isDark ? '☀' : '☾') + '</span>';
-    }
+    var theme = themeModule();
+    if (!button || !theme) return;
+
+    var next = theme.nextMode(mode);
+    var text = 'Тема: ' + theme.LABELS[mode] + '. Нажмите, чтобы выбрать: ' + theme.LABELS[next];
+
+    button.setAttribute('aria-pressed', String(theme.resolve(mode) === 'dark'));
+    button.setAttribute('title', text);
+    button.setAttribute('aria-label', text);
+    button.setAttribute('data-mode', mode);
+    button.innerHTML = '<span aria-hidden="true">' + theme.ICONS[mode] + '</span>';
   }
 
-  /** Определяет тему: сохранённую пользователем либо системную. */
-  function resolveTheme() {
-    var saved = null;
-    try {
-      saved = window.localStorage.getItem(THEME_KEY);
-    } catch (error) {
-      // Доступ к localStorage может быть запрещён настройками браузера
-      saved = null;
+  /**
+   * Включает плавную смену цветов на время переключения темы.
+   * Пользователям, отключившим анимацию в системе, смена показывается сразу.
+   */
+  function withThemeTransition(change) {
+    var root = document.documentElement;
+    var reduceMotion = window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      change();
+      return;
     }
 
-    if (saved === 'light' || saved === 'dark') return saved;
-
-    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return prefersDark ? 'dark' : 'light';
+    root.classList.add('theme-transition');
+    change();
+    window.setTimeout(function () {
+      root.classList.remove('theme-transition');
+    }, THEME_TRANSITION_MS);
   }
 
-  /** Переключает тему и сохраняет выбор пользователя. */
+  /**
+   * Применяет режим темы: светлая, тёмная или «как в системе».
+   * Оставлена для совместимости со сценариями страниц.
+   *
+   * @param {'light'|'dark'|'system'} mode
+   */
+  function applyTheme(mode) {
+    var theme = themeModule();
+
+    if (theme) {
+      theme.apply(mode);
+    } else {
+      // Модуль темы не загрузился: применяем светлую или тёмную тему напрямую
+      var value = mode === 'dark' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', value);
+      document.documentElement.style.colorScheme = value;
+    }
+
+    updateThemeButton(mode);
+  }
+
+  /** Переключает режим по кругу и сохраняет выбор пользователя в localStorage. */
   function toggleTheme() {
-    var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-    var next = current === 'dark' ? 'light' : 'dark';
+    var theme = themeModule();
+    if (!theme) return;
 
-    applyTheme(next);
+    var next = theme.nextMode(theme.readMode());
+    theme.saveMode(next);
 
-    try {
-      window.localStorage.setItem(THEME_KEY, next);
-    } catch (error) {
-      // Если сохранить не удалось, тема всё равно применена до перезагрузки
-    }
+    withThemeTransition(function () {
+      applyTheme(next);
+    });
+
+    // Сообщение для программ чтения с экрана: значок на кнопке им не виден
+    var status = document.getElementById('theme-status');
+    if (status) status.textContent = 'Тема оформления: ' + theme.LABELS[next];
   }
 
   /** Настраивает кнопку переключения темы. */
   function setupTheme() {
-    applyTheme(resolveTheme());
+    var theme = themeModule();
+    if (!theme) return;
+
+    updateThemeButton(theme.readMode());
 
     var button = document.getElementById('theme-toggle');
     if (button) button.addEventListener('click', toggleTheme);
 
-    // Если пользователь тему не выбирал, следуем за настройкой системы
+    // В режиме «как в системе» тема меняется вслед за настройкой системы,
+    // например при автоматическом включении тёмной темы вечером
     if (window.matchMedia) {
       var query = window.matchMedia('(prefers-color-scheme: dark)');
       var onChange = function () {
-        var saved = null;
-        try {
-          saved = window.localStorage.getItem(THEME_KEY);
-        } catch (error) {
-          saved = null;
-        }
-        if (!saved) applyTheme(query.matches ? 'dark' : 'light');
+        if (theme.readMode() === 'system') applyTheme('system');
       };
 
       if (query.addEventListener) query.addEventListener('change', onChange);
       else if (query.addListener) query.addListener(onChange);   // старые браузеры
     }
+
+    // Выбор, сделанный в другой вкладке, сразу применяется и в этой:
+    // браузер сообщает об изменении localStorage событием storage
+    window.addEventListener('storage', function (event) {
+      if (event.key === THEME_KEY || event.key === null) {
+        applyTheme(theme.readMode());
+      }
+    });
   }
 
   /** Закрывает меню на мобильных устройствах. */
@@ -217,10 +270,31 @@
 
   // --- Инициализация при загрузке страницы -------------------------------
 
+  /**
+   * Подключает все кнопки «Показать пароль» на странице.
+   * Кнопка связана с полем атрибутом data-password-toggle="<id поля>".
+   */
+  function setupPasswordToggles() {
+    var buttons = document.querySelectorAll('[data-password-toggle]');
+
+    Array.prototype.forEach.call(buttons, function (button) {
+      // Повторное подключение исключается: иначе одно нажатие
+      // переключало бы поле дважды и ничего бы не менялось
+      if (button.getAttribute('data-toggle-ready') === 'true') return;
+
+      var input = document.getElementById(button.getAttribute('data-password-toggle'));
+      if (!input) return;
+
+      setupPasswordToggle(input, button);
+      button.setAttribute('data-toggle-ready', 'true');
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     setupTheme();
     setupMenu();
     setupLogout();
+    setupPasswordToggles();
 
     // Показываем сохранённое уведомление из sessionStorage: используется
     // при переходе между страницами (например, после регистрации)
@@ -244,6 +318,7 @@
     applyTheme: applyTheme,
     toggleTheme: toggleTheme,
     setupPasswordToggle: setupPasswordToggle,
+    setupPasswordToggles: setupPasswordToggles,
     setupLogout: setupLogout,
     setPendingAlert: function (type, message, title) {
       try {

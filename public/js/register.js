@@ -29,12 +29,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var strengthTimer = null;
 
-  /** Показывает оценку надёжности пароля. */
-  function showStrength(result) {
+  /**
+   * Показывает оценку надёжности пароля.
+   *
+   * @param {object|null} data ответ сервера вида
+   *   { success: true, strength: { score, level, label } } либо null,
+   *   если поле пароля пустое
+   */
+  function showStrength(data) {
     if (!strengthBlock || !strengthBar || !strengthLabel) return;
 
-    strengthBlock.hidden = !result || !result.password;
-    if (!result || !result.password) return;
+    // Оценка лежит в поле strength ответа сервера
+    var result = data && data.strength;
+    strengthBlock.hidden = !result;
+    if (!result) return;
 
     var levels = {
       veryWeak: { color: 'var(--color-danger)', text: 'очень низкая' },
@@ -44,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function () {
       veryStrong: { color: 'var(--color-success)', text: 'очень высокая' },
     };
 
-    var level = levels[result.strength] || levels.weak;
+    var level = levels[result.level] || levels.weak;
     strengthBar.style.width = Math.max(4, result.score) + '%';
     strengthBar.style.background = level.color;
     strengthLabel.textContent = 'Надёжность пароля: ' + level.text

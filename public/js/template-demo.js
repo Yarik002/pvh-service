@@ -12,17 +12,11 @@
 document.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
-  // Переключатель видимости пароля в демонстрационном поле
-  var toggles = document.querySelectorAll('[data-password-toggle]');
-
-  Array.prototype.forEach.call(toggles, function (button) {
-    var inputId = button.getAttribute('data-password-toggle');
-    var input = document.getElementById(inputId);
-
-    if (input && window.PVH) {
-      window.PVH.setupPasswordToggle(input, button);
-    }
-  });
+  // Переключатель видимости пароля подключается общим сценарием layout.js
+  // на всех страницах; повторный вызов безопасен — кнопка не подключается дважды
+  if (window.PVH && window.PVH.setupPasswordToggles) {
+    window.PVH.setupPasswordToggles();
+  }
 
   // Кнопки вывода уведомлений: показывают, как сообщения появляются
   // в реальных сценариях (например, после отправки формы)

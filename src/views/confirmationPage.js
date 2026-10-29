@@ -48,7 +48,7 @@ const APPEARANCE = {
     background: '#fff4e5',
     title: 'Срок действия ссылки истёк',
     hint: 'Ссылка подтверждения действует ограниченное время. Запросите новое письмо — оно придёт на тот же адрес.',
-    action: { label: 'Получить новое письмо', href: '/resend-confirmation.html' },
+    action: { label: 'Получить новое письмо', href: '/confirm?status=expired' },
   },
   [CONFIRM_STATUS.INVALID_TOKEN]: {
     icon: '&#10006;',
@@ -56,7 +56,7 @@ const APPEARANCE = {
     background: '#fdecea',
     title: 'Ссылка недействительна',
     hint: 'Возможно, ссылка была использована ранее или скопирована не полностью. Проверьте, что адрес скопирован целиком, либо запросите новое письмо.',
-    action: { label: 'Получить новое письмо', href: '/resend-confirmation.html' },
+    action: { label: 'Получить новое письмо', href: '/confirm?status=invalid' },
   },
   [CONFIRM_STATUS.MISSING_TOKEN]: {
     icon: '&#10006;',
@@ -64,7 +64,7 @@ const APPEARANCE = {
     background: '#fdecea',
     title: 'В ссылке нет токена подтверждения',
     hint: 'Похоже, адрес скопирован не полностью. Откройте письмо и перейдите по ссылке целиком либо запросите новое письмо.',
-    action: { label: 'Получить новое письмо', href: '/resend-confirmation.html' },
+    action: { label: 'Получить новое письмо', href: '/confirm?status=invalid' },
   },
 };
 

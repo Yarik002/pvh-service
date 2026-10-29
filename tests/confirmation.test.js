@@ -334,7 +334,9 @@ test('страница ошибки содержит ссылку на повт�
   });
 
   assert.ok(html.includes('Срок действия ссылки истёк'));
-  assert.ok(html.includes('resend-confirmation.html'), 'предложена повторная отправка');
+  // Кнопка ведёт на страницу /confirm, где есть форма повторной отправки письма
+  assert.ok(html.includes('href="/confirm?status=expired"'), 'предложена повторная отправка');
+  assert.ok(!html.includes('resend-confirmation.html'), 'нет ссылки на несуществующую страницу');
 });
 
 test('значения на странице экранируются', () => {
