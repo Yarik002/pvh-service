@@ -119,4 +119,57 @@ const loginSchema = {
   },
 };
 
-module.exports = { registerSchema, changePasswordSchema, loginSchema, passwordRules };
+/**
+ * Формат трек-номера: латинские буквы, цифры и дефис, от 6 до 40 символов.
+ * Так выглядят трек-номера почтовых служб и маркетплейсов
+ * (RA123456789BY, PVZ100000001, 1234-5678-90).
+ */
+const TRACK_NUMBER_PATTERN = /^[A-Z0-9][A-Z0-9-]{4,38}[A-Z0-9]$/;
+
+/**
+ * Проверка трек-номера с приведением к единому виду: пробелы по краям
+ * удаляются, буквы переводятся в верхний регистр. Поэтому «ra123456789by»
+ * и «RA123456789BY» считаются одним и тем же трек-номером.
+ */
+function trackNumberRule() {
+  return (value) => {
+    const text = String(value).trim().toUpperCase();
+    if (!TRACK_NUMBER_PATTERN.test(text)) {
+      return {
+        ok: false,
+        code: 'BAD_FORMAT',
+        message: 'Трек-номер: от 6 до 40 символов — латинские буквы, цифры и дефис, '
+          + 'например RA123456789BY',
+      };
+    }
+    return { ok: true, value: text };
+  };
+}
+
+/** Схема приёмки заказа (поля, не зависящие от выбора получателя и ячейки). */
+const receiveOrderSchema = {
+  trackNumber: {
+    label: 'Трек-номер',
+    rules: [required('Трек-номер'), trackNumberRule()],
+  },
+  description: {
+    label: 'Описание посылки',
+    rules: [
+      // Описание необязательно: пустое значение сохраняется как null
+      (value) => ({
+        ok: true,
+        value: value === undefined || value === null ? '' : String(value).trim(),
+      }),
+      length({ max: 500, label: 'Описание посылки' }),
+    ],
+  },
+};
+
+module.exports = {
+  registerSchema,
+  changePasswordSchema,
+  loginSchema,
+  receiveOrderSchema,
+  passwordRules,
+  TRACK_NUMBER_PATTERN,
+};

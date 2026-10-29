@@ -24,6 +24,7 @@ const authRouter = require('./routes/auth');
 const passwordRouter = require('./routes/password');
 const cellsRouter = require('./routes/cells');
 const adminRouter = require('./routes/admin');
+const ordersRouter = require('./routes/orders');
 const pagesRouter = require('./routes/pages');
 
 /**
@@ -82,6 +83,8 @@ function createApp() {
   app.use('/api/cells', cellsRouter);
   // Административный раздел: доступен только пользователям с ролью admin
   app.use('/api/admin', adminRouter);
+  // Заказы: приёмка (администратор) и просмотр заказа
+  app.use('/api/orders', ordersRouter);
 
   // Корневой маршрут: краткая справка о сервисе и перечень разделов API.
   // Отдаётся в формате JSON по адресу /api; главная страница приложения —
@@ -112,14 +115,16 @@ function createApp() {
         cellSuggest: 'GET /api/cells/suggest?mode=auto|manual — выбор ячейки для заказа (администратор)',
         adminOverview: 'GET /api/admin/overview — сводка по ПВЗ (только администратор)',
         adminUsers: 'GET /api/admin/users — список пользователей (только администратор)',
+        receiveOrder: 'POST /api/orders — приёмка заказа в пункт выдачи (только администратор)',
+        order: 'GET /api/orders/:id — сведения о заказе',
       },
       pages: {
         home: 'GET / — главная страница приложения',
         templateDemo: 'GET /template-demo — страница проверки шаблона',
       },
       planned: [
-        'POST /api/orders — приёмка заказа (14-й день)',
         'GET /api/orders/my — список заказов клиента (16-й день)',
+        'POST /api/orders/:id/issue — выдача заказа (18-й день)',
       ],
       timestamp: new Date().toISOString(),
     });

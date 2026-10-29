@@ -208,6 +208,26 @@ async function sendConfirmationEmail({ name, email, token }) {
 }
 
 /**
+ * Отправляет клиенту письмо о поступлении заказа в пункт выдачи
+ * (шаблон подготовлен на 5-м дне, отправка подключена на 14-м).
+ *
+ * @param {{name: string, email: string, trackNumber: string,
+ *          cellNumber: number, description?: string|null}} data
+ * @returns {Promise<{status: string, messageId: string|null, error: string|null}>}
+ */
+async function sendOrderReceivedEmail({ name, email, trackNumber, cellNumber, description }) {
+  const { orderReceivedEmail } = require('./emailTemplates');
+  const letter = orderReceivedEmail({ name, trackNumber, cellNumber, description });
+
+  return sendMail({
+    to: { address: email, name },
+    subject: letter.subject,
+    text: letter.text,
+    html: letter.html,
+  });
+}
+
+/**
  * Проверяет соединение с почтовым сервером (используется диагностикой).
  * @returns {Promise<{ok: boolean, mode: string, error: string|null, capabilities: string[]}>}
  */
@@ -287,6 +307,7 @@ async function verifyConnection() {
 module.exports = {
   sendMail,
   sendConfirmationEmail,
+  sendOrderReceivedEmail,
   verifyConnection,
   checkSmtpSettings,
   getTransport,
