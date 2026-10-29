@@ -29,6 +29,9 @@
   /** Полный шаблон адреса электронной почты. */
   var EMAIL_PATTERN = new RegExp('^' + EMAIL_LOCAL + '@' + EMAIL_DOMAIN + '$');
 
+  /** Шаблон трек-номера — совпадает с серверным (src/validators/schemas.js). */
+  var TRACK_PATTERN = /^[A-Z0-9][A-Z0-9-]{4,38}[A-Z0-9]$/;
+
   /** Правила проверки полей. Каждое правило возвращает сообщение об ошибке либо null. */
   var RULES = {
     /** Имя пользователя: обязательно, от 2 до 100 символов. */
@@ -79,6 +82,48 @@
     /** Согласие с правилами обработки данных. */
     agree: function (value, form) {
       if (!form || !form.agree) return 'Необходимо согласиться с правилами обработки данных';
+      return null;
+    },
+
+    // --- Приёмка заказа (15-й день) --------------------------------------
+
+    /**
+     * Трек-номер: 6–40 символов, латинские буквы, цифры и дефис.
+     * Регистр не важен — сервер приводит трек-номер к верхнему регистру.
+     */
+    trackNumber: function (value) {
+      var text = String(value || '').trim().toUpperCase();
+      if (text === '') return 'Укажите трек-номер';
+      if (!TRACK_PATTERN.test(text)) {
+        return 'Трек-номер: от 6 до 40 символов — латинские буквы, цифры и дефис, '
+          + 'например RA123456789BY';
+      }
+      return null;
+    },
+
+    /** Получатель заказа: адрес электронной почты зарегистрированного клиента. */
+    clientEmail: function (value) {
+      var text = String(value || '').trim();
+      if (text === '') return 'Укажите получателя заказа';
+      if (!EMAIL_PATTERN.test(text)) {
+        return 'Укажите корректный адрес электронной почты, например ivanov@mail.ru';
+      }
+      return null;
+    },
+
+    /** Описание посылки: необязательно, до 500 символов. */
+    description: function (value) {
+      if (String(value || '').trim().length > 500) {
+        return 'Описание посылки должно содержать не более 500 символов';
+      }
+      return null;
+    },
+
+    /** Ячейка при ручном выборе обязательна. */
+    cellId: function (value, form) {
+      if (form && form.cellMode === 'manual' && String(value || '') === '') {
+        return 'Выберите ячейку хранения из списка свободных';
+      }
       return null;
     },
   };
@@ -143,6 +188,14 @@
 
     Array.prototype.forEach.call(elements, function (element) {
       if (!element.name) return;
+
+      // В группе переключателей учитывается только выбранный:
+      // иначе значение группы бралось бы у последнего переключателя
+      if (element.type === 'radio') {
+        if (element.checked) values[element.name] = element.value;
+        return;
+      }
+
       values[element.name] = element.type === 'checkbox' ? element.checked : element.value;
     });
 

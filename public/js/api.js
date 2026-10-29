@@ -193,6 +193,21 @@
       return request('GET', '/cells/' + encodeURIComponent(id));
     },
 
+    /**
+     * Какая ячейка будет назначена заказу (ячейка не занимается).
+     * @param {{mode?: string, cellId?: string|number}} [choice]
+     */
+    suggestCell: function (choice) {
+      var params = ['mode=' + encodeURIComponent((choice && choice.mode) || 'auto')];
+      if (choice && choice.cellId) params.push('cellId=' + encodeURIComponent(choice.cellId));
+      return request('GET', '/cells/suggest?' + params.join('&'));
+    },
+
+    /** Приёмка заказа в пункт выдачи (только администратор). */
+    receiveOrder: function (payload) {
+      return request('POST', '/orders', { body: payload });
+    },
+
     /** Сводка по состоянию ПВЗ (только администратор). */
     adminOverview: function () {
       return request('GET', '/admin/overview');

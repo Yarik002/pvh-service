@@ -150,7 +150,14 @@ function trackNumberRule() {
 const receiveOrderSchema = {
   trackNumber: {
     label: 'Трек-номер',
-    rules: [required('Трек-номер'), trackNumberRule()],
+    rules: [
+      // Своё сообщение вместо общего «… обязательно для заполнения»:
+      // «Трек-номер обязательно» звучит неграмотно
+      (value) => (value === undefined || value === null || String(value).trim() === ''
+        ? { ok: false, code: 'REQUIRED', message: 'Укажите трек-номер' }
+        : { ok: true, value }),
+      trackNumberRule(),
+    ],
   },
   description: {
     label: 'Описание посылки',

@@ -24,6 +24,7 @@ const {
 } = require('../views/authPages');
 const { renderAdminContent } = require('../views/adminPage');
 const { renderCellsContent } = require('../views/cellsPage');
+const { renderReceiveContent } = require('../views/receivePage');
 const { optionalAuth, requireAuth, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -421,7 +422,8 @@ router.get('/cells', requireAuth(), (req, res, next) => {
 
 /**
  * GET /receive
- * Страница приёмки товара (реализуется на 15-м дне практики).
+ * Страница приёмки товара: форма оформления поступившей посылки
+ * с назначением ячейки хранения. Доступна только администратору.
  */
 router.get(
   '/receive',
@@ -432,13 +434,11 @@ router.get(
       const html = renderPage({
         title: 'Приёмка товара',
         path: '/receive',
-        content: renderPlannedContent({
-          title: 'Приёмка товара',
-          description: 'Оформление поступления посылки с назначением ячейки.',
-          plannedStage: 'дни 14–15, приёмка заказов',
-        }),
+        description: 'Оформление поступившей посылки с назначением ячейки хранения.',
+        content: renderReceiveContent(),
         isAuthenticated: true,
         user: toViewUser(req.user),
+        scripts: ['/js/api.js', '/js/form.js', '/js/receive.js'],
       });
 
       res.status(200).type('html').send(html);

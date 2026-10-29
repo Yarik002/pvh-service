@@ -201,8 +201,9 @@ test('разделы в разработке отдают страницу вм�
   try {
     const token = await loginAs('admin@mail.ru', 'admin');
 
-    // Раздел «Ячейки» реализован на 12-м дне и проверяется в tests/cellsApi.test.js
-    for (const path of ['/orders', '/receive']) {
+    // Раздел «Ячейки» реализован на 12-м дне (tests/cellsApi.test.js),
+    // раздел «Приёмка товара» — на 15-м дне (tests/receivePage.test.js)
+    for (const path of ['/orders']) {
       const page = await getPage(path, token);
 
       assert.equal(page.status, 200, `${path} должен открываться`);
