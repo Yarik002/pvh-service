@@ -28,6 +28,45 @@ function sortableHeader(key, title) {
 }
 
 /**
+ * Окно подтверждения выдачи заказа (19-й день).
+ *
+ * Используется элемент <dialog>: браузер сам блокирует страницу под окном,
+ * удерживает фокус внутри и закрывает окно клавишей Esc. Фокус при открытии
+ * ставится на «Отмена» — безопасное действие (атрибут autofocus).
+ */
+function renderIssueDialog() {
+  return `      <dialog class="modal" id="issue-dialog" aria-labelledby="issue-title" aria-describedby="issue-text">
+        <div class="modal__tape" aria-hidden="true"></div>
+        <form method="dialog">
+          <div class="modal__body">
+            <h2 class="modal__title" id="issue-title">Выдать заказ клиенту?</h2>
+            <p class="modal__text" id="issue-text">Сверьте трек-номер и имя получателя. После выдачи
+              заказ получит статус «Выдан», а ячейка освободится.</p>
+            <div class="issue-card">
+              <div class="issue-card__cell">
+                <span class="issue-card__cell-label">ячейка</span>
+                <span class="issue-card__cell-number" id="issue-cell">—</span>
+              </div>
+              <dl>
+                <dt>Трек-номер</dt><dd class="track" id="issue-track">—</dd>
+                <dt>Получатель</dt><dd id="issue-client">—</dd>
+                <dt>Описание</dt><dd id="issue-description">—</dd>
+              </dl>
+            </div>
+            <div class="alert alert--danger" id="issue-error" role="alert" hidden style="margin-top: 16px;">
+              <span class="alert__icon" aria-hidden="true">✕</span>
+              <div class="alert__body" id="issue-error-text"></div>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button class="btn btn--secondary btn--inline" type="submit" value="cancel" autofocus>Отмена</button>
+            <button class="btn btn--accent btn--inline" type="button" id="issue-confirm">Выдать заказ</button>
+          </div>
+        </form>
+      </dialog>`;
+}
+
+/**
  * Содержимое страницы заказов.
  * @param {{isAdmin?: boolean}} [options]
  * @returns {string}
@@ -133,7 +172,8 @@ ${headers}
         </div>
       </div>
 
-      <p class="text-muted text-small" id="orders-summary" aria-live="polite"></p>`;
+      <p class="text-muted text-small" id="orders-summary" aria-live="polite"></p>
+${isAdmin ? renderIssueDialog() : ''}`;
 }
 
 module.exports = { renderOrdersContent };

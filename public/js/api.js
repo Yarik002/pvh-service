@@ -216,6 +216,11 @@
       return request('GET', '/orders' + (query ? '?' + query : ''));
     },
 
+    /** Выдача заказа (только администратор, 19-й день). */
+    issueOrder: function (id) {
+      return request('POST', '/orders/' + encodeURIComponent(id) + '/issue');
+    },
+
     /** Приёмка заказа в пункт выдачи (только администратор). */
     receiveOrder: function (payload) {
       return request('POST', '/orders', { body: payload });

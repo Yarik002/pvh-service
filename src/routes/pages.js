@@ -360,7 +360,11 @@ router.get('/orders', requireAuth(), (req, res, next) => {
       content: renderOrdersContent({ isAdmin }),
       isAuthenticated: true,
       user: toViewUser(req.user),
-      scripts: ['/js/api.js', '/js/orders.js'],
+      // Действия администратора (выдача, изменение, удаление) подключаются
+      // до сценария списка: он вызывает их при построении строк таблицы
+      scripts: isAdmin
+        ? ['/js/api.js', '/js/form.js', '/js/orderActions.js', '/js/orders.js']
+        : ['/js/api.js', '/js/orders.js'],
     });
 
     res.status(200).type('html').send(html);
