@@ -29,6 +29,30 @@ const cellAssignment = require('./cellAssignment');
 const cellRepository = require('../repositories/cellRepository');
 const mailer = require('../mail/mailer');
 
+/**
+ * Жизненный цикл заказа (23-й день): из какого статуса в какой можно перейти.
+ *
+ *   «В пути» ──приёмка──▶ «Готов к выдаче» ──выдача──▶ «Выдан»
+ *
+ * Обратных переходов нет: выданный заказ — история. Таблица используется
+ * при выдаче и проверяется модульными тестами.
+ */
+const STATUS_TRANSITIONS = Object.freeze({
+  'В пути': Object.freeze(['Готов к выдаче']),
+  'Готов к выдаче': Object.freeze(['Выдан']),
+  'Выдан': Object.freeze([]),
+});
+
+/**
+ * Можно ли перевести заказ из одного статуса в другой.
+ * @param {string} from текущий статус
+ * @param {string} to   новый статус
+ * @returns {boolean}
+ */
+function canChangeStatus(from, to) {
+  return Boolean(STATUS_TRANSITIONS[from] && STATUS_TRANSITIONS[from].includes(to));
+}
+
 /** Коды отказов приёмки. */
 const ORDER_ERRORS = {
   CLIENT_REQUIRED: 'CLIENT_REQUIRED',
@@ -287,7 +311,7 @@ function issueOrder(id, context = {}) {
     if (order.status === 'Выдан') {
       throw new AppError(`Заказ ${order.trackNumber} уже выдан клиенту`, 409, ORDER_ERRORS.ORDER_ALREADY_ISSUED);
     }
-    if (order.status !== 'Готов к выдаче') {
+    if (!canChangeStatus(order.status, 'Выдан')) {
       throw new AppError(`Заказ ${order.trackNumber} ещё не поступил в пункт выдачи (статус «${order.status}»)`,
         409, ORDER_ERRORS.ORDER_NOT_READY);
     }
@@ -538,4 +562,6 @@ module.exports = {
   ORDER_ERRORS,
   ORDER_STATUSES,
   STATUS_ALIASES,
+  STATUS_TRANSITIONS,
+  canChangeStatus,
 };
