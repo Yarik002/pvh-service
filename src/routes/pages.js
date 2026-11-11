@@ -363,9 +363,10 @@ router.get('/orders', requireAuth(), (req, res, next) => {
       user: toViewUser(req.user),
       // Действия администратора (выдача, изменение, удаление) подключаются
       // до сценария списка: он вызывает их при построении строк таблицы
+      // ordersLive.js — автообновление списка (21-й день)
       scripts: isAdmin
-        ? ['/js/api.js', '/js/form.js', '/js/orderActions.js', '/js/orders.js']
-        : ['/js/api.js', '/js/orders.js'],
+        ? ['/js/api.js', '/js/form.js', '/js/orderActions.js', '/js/orders.js', '/js/ordersLive.js']
+        : ['/js/api.js', '/js/orders.js', '/js/ordersLive.js'],
     });
 
     res.status(200).type('html').send(html);

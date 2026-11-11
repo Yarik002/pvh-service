@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function () {
         render(data);
         if (updated) {
           updated.textContent = 'Обновлено в ' + new Date().toLocaleTimeString('ru-RU',
-            { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' · авто';
         }
         updatePickupBanner();
         return data;
