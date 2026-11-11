@@ -269,6 +269,65 @@
     });
   }
 
+  /**
+   * Окно подтверждения действия (20-й день): «Удалить заказ?», «Удалить
+   * учётную запись?». Строится на элементе <dialog>; фокус ставится
+   * на «Отмена» — безопасное действие.
+   *
+   * @param {{title: string, text: string, confirmText?: string, danger?: boolean}} options
+   * @returns {Promise<boolean>} true — пользователь подтвердил действие
+   */
+  function confirmAction(options) {
+    return new Promise(function (resolve) {
+      var dialog = document.createElement('dialog');
+      dialog.className = 'modal' + (options.danger ? ' modal--danger' : '');
+      dialog.setAttribute('aria-labelledby', 'confirm-title');
+
+      var tape = document.createElement('div');
+      tape.className = 'modal__tape';
+      var form = document.createElement('form');
+      form.method = 'dialog';
+
+      var body = document.createElement('div');
+      body.className = 'modal__body';
+      var title = document.createElement('h2');
+      title.className = 'modal__title';
+      title.id = 'confirm-title';
+      title.textContent = options.title;
+      var text = document.createElement('p');
+      text.className = 'modal__text';
+      text.textContent = options.text;
+      body.appendChild(title);
+      body.appendChild(text);
+
+      var footer = document.createElement('div');
+      footer.className = 'modal__footer';
+      var cancel = document.createElement('button');
+      cancel.className = 'btn btn--secondary btn--inline';
+      cancel.value = 'cancel';
+      cancel.textContent = 'Отмена';
+      cancel.autofocus = true;
+      var ok = document.createElement('button');
+      ok.className = 'btn btn--inline ' + (options.danger ? 'btn--danger' : 'btn--accent');
+      ok.value = 'confirm';
+      ok.textContent = options.confirmText || 'Подтвердить';
+      footer.appendChild(cancel);
+      footer.appendChild(ok);
+
+      form.appendChild(body);
+      form.appendChild(footer);
+      dialog.appendChild(tape);
+      dialog.appendChild(form);
+      document.body.appendChild(dialog);
+
+      dialog.addEventListener('close', function () {
+        resolve(dialog.returnValue === 'confirm');
+        dialog.remove();
+      });
+      dialog.showModal();
+    });
+  }
+
   // --- Инициализация при загрузке страницы -------------------------------
 
   /**
@@ -321,6 +380,7 @@
     setupPasswordToggle: setupPasswordToggle,
     setupPasswordToggles: setupPasswordToggles,
     setupLogout: setupLogout,
+    confirm: confirmAction,
     setPendingAlert: function (type, message, title) {
       try {
         window.sessionStorage.setItem('pvh.alert', JSON.stringify({

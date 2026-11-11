@@ -67,6 +67,48 @@ function renderIssueDialog() {
 }
 
 /**
+ * Окно создания и изменения заказа (20-й день). Одна форма на оба действия:
+ * при создании регистрируется ожидаемый заказ «В пути», при изменении
+ * меняются трек-номер, получатель и описание.
+ */
+function renderOrderFormDialog() {
+  return `      <dialog class="modal" id="order-dialog" aria-labelledby="order-dialog-title">
+        <div class="modal__tape" aria-hidden="true"></div>
+        <form class="form" id="order-form" novalidate>
+          <div class="modal__body">
+            <h2 class="modal__title" id="order-dialog-title">Ожидаемый заказ</h2>
+            <p class="modal__text" id="order-dialog-text">Посылка ещё в пути: заказ получит статус «В пути»,
+              ячейка будет назначена при приёмке.</p>
+            <div class="form">
+              <div class="field" data-field="trackNumber">
+                <label class="field__label" for="order-track">Трек-номер <span class="field__required" aria-hidden="true">*</span></label>
+                <input class="field__input" id="order-track" name="trackNumber" maxlength="40" autocomplete="off" placeholder="RA123456789BY" required>
+                <span class="field__error" id="error-order-track"></span>
+              </div>
+              <div class="field" data-field="clientEmail">
+                <label class="field__label" for="order-client">Получатель (адрес почты клиента) <span class="field__required" aria-hidden="true">*</span></label>
+                <input class="field__input" id="order-client" name="clientEmail" type="email" maxlength="254"
+                       autocomplete="off" list="order-clients" placeholder="ivanov@mail.ru" required>
+                <datalist id="order-clients"></datalist>
+                <span class="field__error" id="error-order-client"></span>
+              </div>
+              <div class="field" data-field="description">
+                <label class="field__label" for="order-description">Описание посылки</label>
+                <textarea class="field__textarea" id="order-description" name="description" maxlength="500"
+                          placeholder="Например: книга, 0,5 кг"></textarea>
+                <span class="field__error" id="error-order-description"></span>
+              </div>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button class="btn btn--secondary btn--inline" type="button" id="order-cancel">Отмена</button>
+            <button class="btn btn--inline" type="submit" id="order-submit">Сохранить</button>
+          </div>
+        </form>
+      </dialog>`;
+}
+
+/**
  * Содержимое страницы заказов.
  * @param {{isAdmin?: boolean}} [options]
  * @returns {string}
@@ -81,6 +123,7 @@ function renderOrdersContent({ isAdmin = false } = {}) {
 
   const actions = isAdmin
     ? `<div class="page-header__actions">
+          <button class="btn btn--secondary btn--inline" type="button" id="order-create">Ожидаемый заказ</button>
           <a class="btn btn--accent btn--inline" href="/receive">Принять посылку</a>
         </div>`
     : '';
@@ -173,7 +216,8 @@ ${headers}
       </div>
 
       <p class="text-muted text-small" id="orders-summary" aria-live="polite"></p>
-${isAdmin ? renderIssueDialog() : ''}`;
+${isAdmin ? `${renderIssueDialog()}
+${renderOrderFormDialog()}` : ''}`;
 }
 
 module.exports = { renderOrdersContent };

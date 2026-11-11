@@ -20,6 +20,7 @@ const cellRepository = require('../repositories/cellRepository');
 const sessionRepository = require('../repositories/sessionRepository');
 const { getDb } = require('../db/connection');
 const { requireAuth, requireRole } = require('../middleware/authenticate');
+const profileService = require('../services/profileService');
 
 const router = express.Router();
 
@@ -188,6 +189,29 @@ router.delete('/sessions/:id', (req, res, next) => {
       success: true,
       message: 'Сессия завершена.',
     });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:id
+ * Удаление учётной записи администратором (20-й день).
+ * Нельзя удалить себя, пользователя с заказами в ячейках и последнего
+ * администратора. Ответы: 200, 400, 404, 409.
+ */
+router.delete('/users/:id', (req, res, next) => {
+  try {
+    const text = String(req.params.id);
+    const id = /^\d+$/.test(text) ? Number.parseInt(text, 10) : 0;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'BAD_REQUEST', message: 'Идентификатор пользователя должен быть целым положительным числом' },
+      });
+    }
+    const user = profileService.deleteUserByAdmin(id, req.user);
+    return res.status(200).json({ success: true, message: `Учётная запись ${user.email} удалена.`, user });
   } catch (error) {
     return next(error);
   }

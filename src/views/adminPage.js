@@ -87,10 +87,11 @@ function renderAdminContent() {
               <th>Адрес электронной почты</th>
               <th>Роль</th>
               <th>Адрес подтверждён</th>
+              <th class="table__actions">Действия</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="5" class="text-muted">Загрузка сведений…</td></tr>
+            <tr><td colspan="6" class="text-muted">Загрузка сведений…</td></tr>
           </tbody>
         </table>
       </div>

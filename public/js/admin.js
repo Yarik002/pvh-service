@@ -110,6 +110,10 @@ document.addEventListener('DOMContentLoaded', function () {
           var confirmedBadge = user.isConfirmed
             ? '<span class="badge badge--success">подтверждён</span>'
             : '<span class="badge badge--warning">не подтверждён</span>';
+          // 20-й день: клиента можно удалить (администратора — нет)
+          var remove = user.role === 'client'
+            ? '<button class="btn btn--ghost btn--sm" type="button" data-delete-user="' + user.id + '">Удалить</button>'
+            : '';
 
           return '<tr>'
             + '<td>' + escapeHtml(user.id) + '</td>'
@@ -117,9 +121,42 @@ document.addEventListener('DOMContentLoaded', function () {
             + '<td>' + escapeHtml(user.email) + '</td>'
             + '<td>' + roleBadge + '</td>'
             + '<td>' + confirmedBadge + '</td>'
+            + '<td class="table__actions">' + remove + '</td>'
             + '</tr>';
         }).join('');
       });
+  }
+
+  // Удаление клиента: подтверждение в окне, затем DELETE /api/admin/users/:id
+  var usersTable = document.getElementById('users-table');
+  if (usersTable) {
+    usersTable.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-delete-user]');
+      if (!button || !window.PVH || !window.PVH.confirm) return;
+      var row = button.closest('tr');
+      var email = row.children[2].textContent;
+
+      window.PVH.confirm({
+        title: 'Удалить клиента?',
+        text: 'Учётная запись ' + email + ' и история её заказов будут удалены. '
+          + 'Если в ячейках лежат заказы клиента, сервер откажет в удалении.',
+        confirmText: 'Удалить',
+        danger: true,
+      }).then(function (confirmed) {
+        if (!confirmed) return;
+        API.deleteUser(button.getAttribute('data-delete-user'))
+          .then(function (data) {
+            var notify = window.PVH.toast || window.PVH.showAlert;
+            notify('success', data.message, 'Клиент удалён');
+            loadUsers();
+            if (typeof loadOverview === 'function') loadOverview();
+          })
+          .catch(function (error) {
+            var notify = window.PVH.toast || window.PVH.showAlert;
+            notify('danger', API.parseError(error).message, 'Клиент не удалён');
+          });
+      });
+    });
   }
 
   // --- Ячейки хранения ---------------------------------------------------

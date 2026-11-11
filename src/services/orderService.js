@@ -38,6 +38,7 @@ const ORDER_ERRORS = {
   TRACK_OTHER_CLIENT: 'TRACK_OTHER_CLIENT',
   ORDER_NOT_READY: 'ORDER_NOT_READY',
   ORDER_ALREADY_ISSUED: 'ORDER_ALREADY_ISSUED',
+  ORDER_READONLY: 'ORDER_READONLY',
 };
 
 /**
@@ -311,6 +312,114 @@ function issueOrder(id, context = {}) {
 }
 
 // ---------------------------------------------------------------------------
+//  Создание, изменение и удаление заказа (20-й день, CRUD)
+// ---------------------------------------------------------------------------
+
+/** Ошибка «трек-номер уже есть» у поля формы. */
+function trackExists(trackNumber) {
+  return new AppError(`Заказ с трек-номером ${trackNumber} уже есть в системе`, 409, ORDER_ERRORS.TRACK_EXISTS, {
+    trackNumber: { code: ORDER_ERRORS.TRACK_EXISTS, message: 'Заказ с таким трек-номером уже есть' },
+  });
+}
+
+/**
+ * Регистрирует ожидаемый заказ со статусом «В пути»: посылка ещё в дороге,
+ * ячейка будет назначена при приёмке (POST /api/orders с тем же трек-номером).
+ *
+ * @param {{trackNumber, clientId?, clientEmail?, description?}} payload
+ * @returns {object} созданный заказ
+ */
+function createExpectedOrder(payload = {}) {
+  const data = validate(payload, receiveOrderSchema);
+  const client = resolveClient(payload);
+  if (orderRepository.findByTrackNumber(data.trackNumber)) throw trackExists(data.trackNumber);
+
+  try {
+    const order = orderRepository.createInTransit({
+      trackNumber: data.trackNumber,
+      description: data.description === '' ? null : data.description,
+      userId: client.id,
+    });
+    logger.info(`Зарегистрирован ожидаемый заказ ${order.trackNumber} для ${client.email}`);
+    return order;
+  } catch (error) {
+    if (isTrackNumberConflict(error)) throw trackExists(data.trackNumber);
+    throw error;
+  }
+}
+
+/**
+ * Изменяет заказ: трек-номер, описание, получателя.
+ * Выданный заказ — история, его изменить нельзя.
+ *
+ * @param {number} id
+ * @param {object} payload изменяемые поля (необязательные)
+ * @returns {object} изменённый заказ
+ * @throws {AppError} 404 — нет заказа; 409 — заказ выдан или трек-номер занят;
+ *                    400 — поля заполнены неверно
+ */
+function updateOrder(id, payload = {}) {
+  const order = orderRepository.findById(id);
+  if (!order) throw AppError.notFound(`Заказ с идентификатором ${id} не найден`);
+  if (order.status === 'Выдан') {
+    throw new AppError(`Заказ ${order.trackNumber} уже выдан — изменить его нельзя`, 409, ORDER_ERRORS.ORDER_READONLY);
+  }
+
+  // Проверяются только переданные поля; незаполненные остаются прежними
+  const changes = {};
+  const data = validate({
+    trackNumber: payload.trackNumber ?? order.trackNumber,
+    description: payload.description ?? order.description ?? '',
+  }, receiveOrderSchema);
+
+  if (payload.trackNumber !== undefined && data.trackNumber !== order.trackNumber) {
+    const other = orderRepository.findByTrackNumber(data.trackNumber);
+    if (other && other.id !== id) throw trackExists(data.trackNumber);
+    changes.trackNumber = data.trackNumber;
+  }
+  if (payload.description !== undefined) {
+    changes.description = data.description === '' ? null : data.description;
+  }
+  const hasClient = ['clientId', 'clientEmail']
+    .some((key) => payload[key] !== undefined && payload[key] !== null && String(payload[key]).trim() !== '');
+  if (hasClient) {
+    changes.userId = resolveClient(payload).id;
+  }
+
+  try {
+    const updated = orderRepository.update(id, changes);
+    logger.info(`Изменён заказ ${updated.trackNumber}: ${Object.keys(changes).join(', ') || 'без изменений'}`);
+    return updated;
+  } catch (error) {
+    if (isTrackNumberConflict(error)) throw trackExists(changes.trackNumber);
+    throw error;
+  }
+}
+
+/**
+ * Удаляет заказ. Если заказ лежал в ячейке, ячейка освобождается
+ * (триггер базы данных), поэтому в ответе возвращается освобождённая ячейка.
+ *
+ * @param {number} id
+ * @returns {{order: object, freedCell: object|null}}
+ */
+function deleteOrder(id) {
+  return transaction(() => {
+    const order = orderRepository.findById(id);
+    if (!order) throw AppError.notFound(`Заказ с идентификатором ${id} не найден`);
+
+    orderRepository.remove(id);
+    const freedCell = order.status === 'Готов к выдаче' && order.cell
+      ? cellRepository.findById(order.cell.id)
+      : null;
+
+    logger.info(`Удалён заказ ${order.trackNumber}`
+      + `${freedCell ? `, ячейка № ${freedCell.cellNumber} освобождена` : ''}`);
+    return { order, freedCell };
+  });
+}
+
+// ---------------------------------------------------------------------------
 //  Списки заказов (16-й день): «Мои заказы» и «Все заказы»
 // ---------------------------------------------------------------------------
 
@@ -417,6 +526,9 @@ function listAllOrders(query = {}) {
 module.exports = {
   receiveOrder,
   issueOrder,
+  createExpectedOrder,
+  updateOrder,
+  deleteOrder,
   resolveClient,
   parseOrderId,
   getOrderForUser,

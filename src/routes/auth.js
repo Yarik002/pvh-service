@@ -21,6 +21,7 @@ const rateLimit = require('../middleware/rateLimit');
 const authService = require('../services/authService');
 const confirmationService = require('../services/confirmationService');
 const sessionService = require('../services/sessionService');
+const profileService = require('../services/profileService');
 const { confirmationPage } = require('../views/confirmationPage');
 const { requireAuth, optionalAuth } = require('../middleware/authenticate');
 
@@ -437,6 +438,39 @@ router.get('/me', requireAuth(), (req, res, next) => {
         lastUsedAt: req.session.lastUsedAt,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/auth/me
+ * Изменение профиля текущего пользователя (20-й день): имя.
+ * Ответы: 200 — данные пользователя; 400 — имя заполнено неверно.
+ */
+router.patch('/me', requireAuth(), (req, res, next) => {
+  try {
+    const user = profileService.updateProfile(req.user.id, req.body || {});
+    res.status(200).json({ success: true, message: 'Профиль сохранён.', user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/auth/me
+ * Удаление собственной учётной записи (20-й день). Тело: { password }.
+ * Сессии и заказы пользователя удаляются вместе с ним, cookie сессии очищается.
+ *
+ * Ответы: 200 — учётная запись удалена; 400 — пароль не введён;
+ *         401 — пароль неверный; 409 — есть заказы в ячейках
+ *         (HAS_ACTIVE_ORDERS) или это последний администратор (LAST_ADMIN).
+ */
+router.delete('/me', requireAuth(), async (req, res, next) => {
+  try {
+    const user = await profileService.deleteOwnAccount(req.user.id, req.body || {});
+    sessionService.clearSessionCookie(res);
+    res.status(200).json({ success: true, message: 'Учётная запись удалена.', user });
   } catch (error) {
     next(error);
   }

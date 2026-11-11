@@ -204,7 +204,30 @@ function count() {
   return getDb().prepare('SELECT COUNT(*) AS n FROM Users').get().n;
 }
 
+/** Изменяет имя пользователя (20-й день). */
+function updateName(id, name) {
+  getDb().prepare('UPDATE Users SET name = ? WHERE id = ?').run(name, id);
+  return findById(id);
+}
+
+/**
+ * Удаляет учётную запись. Сессии и заказы пользователя удаляются каскадно
+ * (внешние ключи ON DELETE CASCADE).
+ * @returns {boolean}
+ */
+function remove(id) {
+  return getDb().prepare('DELETE FROM Users WHERE id = ?').run(id).changes > 0;
+}
+
+/** Количество администраторов. */
+function countAdmins() {
+  return getDb().prepare("SELECT COUNT(*) AS n FROM Users WHERE role = 'admin'").get().n;
+}
+
 module.exports = {
+  updateName,
+  remove,
+  countAdmins,
   findByEmail,
   findById,
   findByConfirmToken,

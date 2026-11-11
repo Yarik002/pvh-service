@@ -221,6 +221,41 @@
       return request('POST', '/orders/' + encodeURIComponent(id) + '/issue');
     },
 
+    /** Ожидаемый заказ «В пути» (только администратор, 20-й день). */
+    createExpectedOrder: function (payload) {
+      return request('POST', '/orders/expected', { body: payload });
+    },
+
+    /** Изменение заказа (только администратор). */
+    updateOrder: function (id, payload) {
+      return request('PATCH', '/orders/' + encodeURIComponent(id), { body: payload });
+    },
+
+    /** Удаление заказа (только администратор). */
+    deleteOrder: function (id) {
+      return request('DELETE', '/orders/' + encodeURIComponent(id));
+    },
+
+    /** Изменение имени в профиле. */
+    updateProfile: function (payload) {
+      return request('PATCH', '/auth/me', { body: payload });
+    },
+
+    /** Удаление своей учётной записи (с подтверждением паролем). */
+    deleteAccount: function (password) {
+      return request('DELETE', '/auth/me', { body: { password: password } });
+    },
+
+    /** Смена пароля. */
+    changePassword: function (payload) {
+      return request('POST', '/password/change', { body: payload });
+    },
+
+    /** Удаление учётной записи пользователя (только администратор). */
+    deleteUser: function (id) {
+      return request('DELETE', '/admin/users/' + encodeURIComponent(id));
+    },
+
     /** Приёмка заказа в пункт выдачи (только администратор). */
     receiveOrder: function (payload) {
       return request('POST', '/orders', { body: payload });

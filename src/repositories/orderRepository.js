@@ -112,6 +112,50 @@ function markIssued(id) {
     .run(id).changes > 0;
 }
 
+/**
+ * Создаёт ожидаемый заказ со статусом «В пути» (20-й день): посылка
+ * зарегистрирована, но ещё не поступила — ячейки и даты поступления нет.
+ */
+function createInTransit({ trackNumber, description = null, userId }) {
+  const info = getDb()
+    .prepare(`INSERT INTO Orders (track_number, description, user_id, status)
+              VALUES (?, ?, ?, 'В пути')`)
+    .run(trackNumber, description, userId);
+  return findById(info.lastInsertRowid);
+}
+
+/**
+ * Изменяет трек-номер, описание и получателя заказа (20-й день).
+ * Передаются только изменяемые поля.
+ */
+function update(id, { trackNumber, description, userId }) {
+  const sets = [];
+  const params = { id };
+  if (trackNumber !== undefined) { sets.push('track_number = @trackNumber'); params.trackNumber = trackNumber; }
+  if (description !== undefined) { sets.push('description = @description'); params.description = description; }
+  if (userId !== undefined) { sets.push('user_id = @userId'); params.userId = userId; }
+  if (sets.length > 0) {
+    getDb().prepare(`UPDATE Orders SET ${sets.join(', ')} WHERE id = @id`).run(params);
+  }
+  return findById(id);
+}
+
+/**
+ * Удаляет заказ. Если заказ лежал в ячейке, триггер базы данных
+ * trg_orders_free_cell_on_delete (1-й день) освобождает ячейку.
+ * @returns {boolean} true, если запись удалена
+ */
+function remove(id) {
+  return getDb().prepare('DELETE FROM Orders WHERE id = ?').run(id).changes > 0;
+}
+
+/** Количество заказов пользователя, ожидающих выдачи (лежат в ячейках). */
+function countReadyByUser(userId) {
+  return getDb()
+    .prepare("SELECT COUNT(*) AS n FROM Orders WHERE user_id = ? AND status = 'Готов к выдаче'")
+    .get(userId).n;
+}
+
 /** Общее количество заказов (используется в проверках). */
 function count() {
   return getDb().prepare('SELECT COUNT(*) AS n FROM Orders').get().n;
@@ -204,6 +248,10 @@ module.exports = {
   createReceived,
   receiveInTransit,
   markIssued,
+  createInTransit,
+  update,
+  remove,
+  countReadyByUser,
   count,
   findMany,
   countByStatus,

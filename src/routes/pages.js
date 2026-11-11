@@ -26,6 +26,7 @@ const { renderAdminContent } = require('../views/adminPage');
 const { renderCellsContent } = require('../views/cellsPage');
 const { renderReceiveContent } = require('../views/receivePage');
 const { renderOrdersContent } = require('../views/ordersPage');
+const { renderProfileContent } = require('../views/profilePage');
 const { optionalAuth, requireAuth, requireRole } = require('../middleware/authenticate');
 const cellRepository = require('../repositories/cellRepository');
 
@@ -374,6 +375,27 @@ router.get('/orders', requireAuth(), (req, res, next) => {
 });
 
 /**
+ * GET /profile
+ * Профиль (20-й день): имя, смена пароля, удаление учётной записи.
+ */
+router.get('/profile', requireAuth(), (req, res, next) => {
+  try {
+    const html = renderPage({
+      title: 'Профиль',
+      path: '/profile',
+      description: 'Профиль пользователя: имя, пароль, удаление учётной записи.',
+      content: renderProfileContent({ user: req.user }),
+      isAuthenticated: true,
+      user: toViewUser(req.user),
+      scripts: ['/js/api.js', '/js/form.js', '/js/profile.js'],
+    });
+    res.status(200).type('html').send(html);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /cells
  * Страница ячеек хранения: сводка по складу и состояние каждой ячейки.
  * Администратор дополнительно видит трек-номера заказов в ячейках.
@@ -439,6 +461,7 @@ const EXTENSION_REDIRECTS = {
   '/orders.html': '/orders',
   '/cells.html': '/cells',
   '/receive.html': '/receive',
+  '/profile.html': '/profile',
 };
 
 Object.entries(EXTENSION_REDIRECTS).forEach(([from, to]) => {
