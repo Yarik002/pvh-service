@@ -278,8 +278,12 @@ test('клиенту отправляется письмо о поступлен
   await prepare();
   const server = new TestSmtpServer();
   const port = await server.listen();
+  // Учётные данные почты сбрасываются: иначе в контейнере Docker, где заданы
+  // настоящие настройки Gmail (SMTP_USER, SMTP_PASSWORD), тест отправлял бы
+  // чужой логин тестовому серверу и получал отказ 535
   mailer.resetForTests({
     MAIL_TRANSPORT: 'smtp', SMTP_HOST: '127.0.0.1', SMTP_SECURE: 'false', SMTP_PORT: port,
+    SMTP_USER: null, SMTP_PASSWORD: null,
   });
 
   try {

@@ -365,7 +365,7 @@ function renderHomeContent({ isAuthenticated = false, user = null, cells = [] } 
   return `      <section class="hero">
         <div>
           <p class="eyebrow">Пункт выдачи заказов</p>
-          <h1 class="hero__title">Каждая посылка — <mark>в своей ячейке</mark></h1>
+          <h1 class="hero__title">Каждая посылка&nbsp;— <mark>в&nbsp;своей ячейке</mark></h1>
           <p class="hero__lead">
             Приёмка посылок с автоматическим выбором ячейки, письмо клиенту
             о поступлении и выдача в одно нажатие. Клиент видит статус заказа
