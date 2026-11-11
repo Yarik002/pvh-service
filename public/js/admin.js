@@ -37,7 +37,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function showLoadError(error) {
     var parsed = API.parseError(error);
 
-    if (window.PVH) {
+    // Если общий перехватчик ошибок (api.js) уже показал уведомление,
+    // второй раз то же сообщение не выводится
+    if (window.PVH && !(error && error.notified)) {
       window.PVH.showAlert('danger',
         parsed.message + ' Обновите страницу или войдите заново.',
         'Не удалось загрузить данные');

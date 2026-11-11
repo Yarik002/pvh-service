@@ -218,6 +218,104 @@
     return alert;
   }
 
+  // --- Всплывающие уведомления (22-й день) -----------------------------------
+
+  /** Сколько показывается уведомление, мс: ошибка — дольше, чтобы успеть прочитать. */
+  var TOAST_DURATION = { success: 5000, info: 6000, warning: 7000, danger: 9000 };
+
+  /** Не больше стольких уведомлений одновременно: старые закрываются. */
+  var TOAST_LIMIT = 4;
+
+  /** Контейнер уведомлений создаётся при первом показе. */
+  function toastStack() {
+    var stack = document.getElementById('toasts');
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.id = 'toasts';
+      stack.className = 'toast-stack';
+      document.body.appendChild(stack);
+    }
+    return stack;
+  }
+
+  /** Закрывает уведомление с короткой анимацией. */
+  function closeToast(toast) {
+    if (!toast || toast.getAttribute('data-closing')) return;
+    toast.setAttribute('data-closing', 'true');
+    toast.classList.add('toast--leaving');
+    window.setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 200);
+  }
+
+  /**
+   * Показывает всплывающее уведомление в правом нижнем углу.
+   *
+   * Уведомление закрывается само через несколько секунд или кнопкой ×;
+   * пока на него наведён указатель, таймер останавливается. Ошибки
+   * объявляются программам чтения с экрана сразу (role="alert").
+   *
+   * @param {'success'|'info'|'warning'|'danger'} type
+   * @param {string} message текст
+   * @param {string} [title] заголовок
+   * @returns {HTMLElement}
+   */
+  function toast(type, message, title) {
+    var stack = toastStack();
+    var kind = TOAST_DURATION[type] ? type : 'info';
+
+    // Одинаковое уведомление не повторяется (например, при нескольких
+    // одновременных ошибках сети)
+    var duplicate = Array.prototype.filter.call(stack.children, function (node) {
+      return node.getAttribute('data-text') === kind + message;
+    })[0];
+    if (duplicate) closeToast(duplicate);
+
+    var node = document.createElement('div');
+    node.className = 'toast toast--' + kind;
+    node.setAttribute('role', kind === 'danger' ? 'alert' : 'status');
+    node.setAttribute('data-text', kind + message);
+
+    var mark = document.createElement('span');
+    mark.className = 'toast__mark';
+    mark.setAttribute('aria-hidden', 'true');
+
+    var body = document.createElement('div');
+    body.className = 'toast__body';
+    if (title) {
+      var heading = document.createElement('strong');
+      heading.className = 'toast__title';
+      heading.textContent = title;
+      body.appendChild(heading);
+    }
+    var text = document.createElement('span');
+    text.className = 'toast__text';
+    text.textContent = message;
+    body.appendChild(text);
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'toast__close';
+    close.setAttribute('aria-label', 'Закрыть уведомление');
+    close.textContent = '×';
+    close.addEventListener('click', function () { closeToast(node); });
+
+    node.appendChild(mark);
+    node.appendChild(body);
+    node.appendChild(close);
+    stack.appendChild(node);
+
+    while (stack.children.length > TOAST_LIMIT) closeToast(stack.children[0]);
+
+    var timer = window.setTimeout(function () { closeToast(node); }, TOAST_DURATION[kind]);
+    node.addEventListener('mouseenter', function () { window.clearTimeout(timer); });
+    node.addEventListener('mouseleave', function () {
+      timer = window.setTimeout(function () { closeToast(node); }, 2500);
+    });
+
+    return node;
+  }
+
   /** Убирает все показанные уведомления. */
   function clearAlerts() {
     var container = document.getElementById('alerts');
@@ -350,6 +448,19 @@
     });
   }
 
+  /**
+   * Последний рубеж обработки ошибок (22-й день): если ошибка запроса
+   * не была обработана сценарием страницы, пользователь всё равно увидит
+   * понятное сообщение, а не «тишину».
+   */
+  window.addEventListener('unhandledrejection', function (event) {
+    var error = event.reason;
+    if (error && error.name === 'ApiError') {
+      if (!error.notified) toast('danger', error.message, 'Не удалось выполнить действие');
+      event.preventDefault();
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', function () {
     setupTheme();
     setupMenu();
@@ -362,7 +473,8 @@
       var pending = window.sessionStorage.getItem('pvh.alert');
       if (pending) {
         var parsed = JSON.parse(pending);
-        showAlert(parsed.type, parsed.message, parsed.title);
+        // С 22-го дня — всплывающим уведомлением, а не блоком над страницей
+        toast(parsed.type, parsed.message, parsed.title);
         window.sessionStorage.removeItem('pvh.alert');
       }
     } catch (error) {
@@ -374,6 +486,7 @@
   // Используется сценариями отдельных страниц (регистрация, вход)
   window.PVH = {
     showAlert: showAlert,
+    toast: toast,
     clearAlerts: clearAlerts,
     applyTheme: applyTheme,
     toggleTheme: toggleTheme,

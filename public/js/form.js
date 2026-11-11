@@ -364,9 +364,12 @@
       ? window.PVH_API.parseError(error)
       : { message: String(error && error.message), fields: null };
 
-    if (window.PVH) {
+    // Сообщение показывается всплывающим уведомлением (22-й день),
+    // а ошибки полей — рядом с полями формы
+    if (window.PVH && !(error && error.notified)) {
       window.PVH.clearAlerts();
-      window.PVH.showAlert('danger', parsed.message, 'Не удалось выполнить действие');
+      if (window.PVH.toast) window.PVH.toast('danger', parsed.message, 'Не удалось выполнить действие');
+      else window.PVH.showAlert('danger', parsed.message, 'Не удалось выполнить действие');
     }
 
     if (parsed.fields) showServerErrors(parsed.fields);

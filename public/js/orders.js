@@ -270,7 +270,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var updated = document.getElementById('orders-updated');
     if (!silent && updated) updated.textContent = 'Загрузка…';
 
-    var request = isAdmin ? API.allOrders(apiQuery()) : API.myOrders(apiQuery());
+    // Фоновый опрос (автообновление) о сбоях сети не уведомляет: об этом
+    // говорит индикатор обновления, а не всплывающее окно каждые 15 секунд
+    var options = { silent: Boolean(silent) };
+    var request = isAdmin ? API.allOrders(apiQuery(), options) : API.myOrders(apiQuery(), options);
 
     return request
       .then(function (data) {
@@ -288,7 +291,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (current !== requestId) return null;
         var parsed = API.parseError(error);
         if (updated) updated.textContent = 'Не удалось обновить список';
-        if (!silent && window.PVH) window.PVH.showAlert('danger', parsed.message, 'Ошибка загрузки заказов');
+        if (!silent && window.PVH && !error.notified) {
+          (window.PVH.toast || window.PVH.showAlert)('danger', parsed.message, 'Ошибка загрузки заказов');
+        }
         throw error;
       });
   }

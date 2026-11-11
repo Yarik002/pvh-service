@@ -1,6 +1,6 @@
 {
   "name": "pvh-service",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "description": "Веб-приложение «Сервис трекинга заказов и инвентаря для ПВЗ» — серверная часть (учебный проект №1, МКП)",
   "keywords": [
@@ -26,7 +26,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:reset": "node scripts/reset-db.js",
     "db:clean": "node scripts/clean-db.js",
-    "check": "node scripts/check-v0.20.js",
+    "check": "node scripts/check-v0.21.js",
     "check:v01": "node scripts/check-v0.1.js",
     "check:v02": "node scripts/check-v0.2.js",
     "check:v03": "node scripts/check-v0.3.js",
@@ -47,6 +47,7 @@
     "check:v018": "node scripts/check-v0.18.js",
     "check:v019": "node scripts/check-v0.19.js",
     "check:v020": "node scripts/check-v0.20.js",
+    "check:v021": "node scripts/check-v0.21.js",
     "mail:check": "node scripts/check-mail.js",
     "finish-day": "node scripts/finish-day.js",
     "test": "node scripts/run-tests.js",

@@ -25,7 +25,18 @@ function notFoundHandler(req, res, next) {
  * Централизованный обработчик ошибок Express.
  * Обязательно должен объявляться последним и иметь четыре аргумента.
  */
-function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
+function errorHandler(error, req, res, next) { // eslint-disable-line no-unused-vars
+  // Ошибки разбора тела запроса (express.json) — это ошибки клиента, а не
+  // сервера: некорректный JSON или слишком большой запрос. Без этого
+  // преобразования они возвращались как 500 «Внутренняя ошибка сервера»
+  // (найдено при проверке единой обработки ошибок на 22-й день)
+  let err = error;
+  if (error && error.type === 'entity.parse.failed') {
+    err = AppError.badRequest('Тело запроса содержит некорректный JSON');
+  } else if (error && error.type === 'entity.too.large') {
+    err = new AppError('Слишком большой запрос (не более 1 МБ)', 413, 'PAYLOAD_TOO_LARGE');
+  }
+
   const isOperational = err instanceof AppError || err.isOperational === true;
   const status = isOperational ? err.status : 500;
   const code = isOperational ? err.code : 'INTERNAL_ERROR';

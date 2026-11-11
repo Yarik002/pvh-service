@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
       .catch(function (error) {
         var parsed = API.parseError(error);
         setText('cells-updated', 'Не удалось загрузить сведения о ячейках.');
-        if (window.PVH) window.PVH.showAlert('danger', parsed.message, 'Ошибка загрузки');
+        if (window.PVH && !error.notified) (window.PVH.toast || window.PVH.showAlert)('danger', parsed.message, 'Ошибка загрузки');
       });
   }
 
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
         card.hidden = false;
       })
       .catch(function (error) {
-        if (window.PVH) window.PVH.showAlert('danger', API.parseError(error).message, 'Ошибка');
+        if (window.PVH && !error.notified) (window.PVH.toast || window.PVH.showAlert)('danger', API.parseError(error).message, 'Ошибка');
       });
   }
 

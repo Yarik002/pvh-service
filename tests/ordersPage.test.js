@@ -134,8 +134,8 @@ test('сценарий обращается к API списков с парам�
   assert.ok(API_JS.includes("request('GET', '/orders/my'"), 'метод myOrders');
   assert.ok(API_JS.includes("request('GET', '/orders'"), 'метод allOrders');
 
-  assert.ok(ORDERS_JS.includes('API.allOrders(apiQuery())'));
-  assert.ok(ORDERS_JS.includes('API.myOrders(apiQuery())'));
+  assert.ok(ORDERS_JS.includes('API.allOrders(apiQuery(), options)'));
+  assert.ok(ORDERS_JS.includes('API.myOrders(apiQuery(), options)'));
   for (const param of ["params.set('status'", "params.set('sort'", "params.set('order'", "params.set('search'"]) {
     assert.ok(ORDERS_JS.includes(param), `передаётся ${param}`);
   }
