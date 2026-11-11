@@ -92,6 +92,26 @@ function receiveInTransit({ id, cellId, description }) {
   return changes > 0 ? findById(id) : null;
 }
 
+/**
+ * Отмечает заказ выданным (18-й день): статус «Выдан», дата выдачи —
+ * текущий момент. Ячейка остаётся записанной в заказе как история:
+ * видно, из какой ячейки заказ был выдан.
+ *
+ * Условие status = 'Готов к выдаче' защищает от двойной выдачи:
+ * если заказ уже выдан (например, вторым нажатием), строка не изменится.
+ *
+ * @returns {boolean} true, если заказ переведён в «Выдан»
+ */
+function markIssued(id) {
+  return getDb()
+    .prepare(
+      `UPDATE Orders
+          SET status = 'Выдан', issued_at = datetime('now')
+        WHERE id = ? AND status = 'Готов к выдаче'`,
+    )
+    .run(id).changes > 0;
+}
+
 /** Общее количество заказов (используется в проверках). */
 function count() {
   return getDb().prepare('SELECT COUNT(*) AS n FROM Orders').get().n;
@@ -183,6 +203,7 @@ module.exports = {
   findByTrackNumber,
   createReceived,
   receiveInTransit,
+  markIssued,
   count,
   findMany,
   countByStatus,

@@ -7,7 +7,8 @@
  *   GET  /api/orders/my  — «Мои заказы» с фильтрами (текущий пользователь);
  *   POST /api/orders     — приёмка заказа в пункт выдачи (только администратор);
  *   GET  /api/orders/:id — сведения о заказе (администратор — любой заказ,
- *                          клиент — только свой).
+ *                          клиент — только свой);
+ *   POST /api/orders/:id/issue — выдача заказа (только администратор, 18-й день).
  *
  * Параметры списков (16-й день), все необязательные:
  *   status — В пути | Готов к выдаче | Выдан (или transit | ready | issued, all);
@@ -121,6 +122,36 @@ router.get('/:id', requireAuth(), (req, res, next) => {
   try {
     const order = orderService.getOrderForUser(orderService.parseOrderId(req.params.id), req.user);
     res.status(200).json({ success: true, order });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/orders/:id/issue
+ * Выдача заказа: статус «Выдан» и освобождение ячейки в одной транзакции.
+ *
+ * Доступ: только администратор.
+ *
+ * Ответы:
+ *   200 — заказ выдан: { order, cell, message };
+ *   400 — идентификатор не число;
+ *   404 — заказ не найден;
+ *   409 — заказ уже выдан (ORDER_ALREADY_ISSUED) или ещё в пути (ORDER_NOT_READY).
+ */
+router.post('/:id/issue', requireAuth(), requireRole('admin'), (req, res, next) => {
+  try {
+    const { order, cell } = orderService.issueOrder(
+      orderService.parseOrderId(req.params.id),
+      { adminId: req.user.id },
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Заказ ${order.trackNumber} выдан клиенту, ячейка № ${cell.cellNumber} свободна.`,
+      order,
+      cell,
+    });
   } catch (error) {
     next(error);
   }

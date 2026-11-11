@@ -119,14 +119,13 @@ function createApp() {
         allOrders: 'GET /api/orders?status=&sort=&order=&search=&clientId= — «Все заказы» (администратор)',
         receiveOrder: 'POST /api/orders — приёмка заказа в пункт выдачи (только администратор)',
         order: 'GET /api/orders/:id — сведения о заказе',
+        issueOrder: 'POST /api/orders/:id/issue — выдача заказа, ячейка освобождается (администратор)',
       },
       pages: {
         home: 'GET / — главная страница приложения',
         templateDemo: 'GET /template-demo — страница проверки шаблона',
       },
-      planned: [
-        'POST /api/orders/:id/issue — выдача заказа (18-й день)',
-      ],
+      planned: [],
       timestamp: new Date().toISOString(),
     });
   });

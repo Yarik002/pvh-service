@@ -26,6 +26,7 @@ const { receiveOrderSchema } = require('../validators/schemas');
 const userRepository = require('../repositories/userRepository');
 const orderRepository = require('../repositories/orderRepository');
 const cellAssignment = require('./cellAssignment');
+const cellRepository = require('../repositories/cellRepository');
 const mailer = require('../mail/mailer');
 
 /** Коды отказов приёмки. */
@@ -35,6 +36,8 @@ const ORDER_ERRORS = {
   NOT_A_CLIENT: 'NOT_A_CLIENT',
   TRACK_EXISTS: 'TRACK_EXISTS',
   TRACK_OTHER_CLIENT: 'TRACK_OTHER_CLIENT',
+  ORDER_NOT_READY: 'ORDER_NOT_READY',
+  ORDER_ALREADY_ISSUED: 'ORDER_ALREADY_ISSUED',
 };
 
 /**
@@ -256,6 +259,58 @@ function getOrderForUser(id, user) {
 }
 
 // ---------------------------------------------------------------------------
+//  Выдача заказа (18-й день)
+// ---------------------------------------------------------------------------
+
+/**
+ * Выдаёт заказ клиенту.
+ *
+ * В ОДНОЙ ТРАНЗАКЦИИ:
+ *   1) заказ переводится из «Готов к выдаче» в «Выдан», ставится дата выдачи;
+ *   2) ячейка, в которой лежал заказ, становится «Свободна».
+ * Если любой шаг не удался, отменяются оба: не возникнет ни выданного заказа
+ * с занятой ячейкой, ни свободной ячейки с невыданным заказом.
+ *
+ * @param {number} id идентификатор заказа
+ * @param {{adminId?: number}} [context] кто выдал заказ (для журнала)
+ * @returns {{order: object, cell: object}} выданный заказ и освобождённая ячейка
+ * @throws {AppError} 404 — заказ не найден;
+ *                    409 ORDER_ALREADY_ISSUED — заказ уже выдан;
+ *                    409 ORDER_NOT_READY — заказ ещё в пути
+ */
+function issueOrder(id, context = {}) {
+  const result = transaction(() => {
+    const order = orderRepository.findById(id);
+    if (!order) throw AppError.notFound(`Заказ с идентификатором ${id} не найден`);
+
+    if (order.status === 'Выдан') {
+      throw new AppError(`Заказ ${order.trackNumber} уже выдан клиенту`, 409, ORDER_ERRORS.ORDER_ALREADY_ISSUED);
+    }
+    if (order.status !== 'Готов к выдаче') {
+      throw new AppError(`Заказ ${order.trackNumber} ещё не поступил в пункт выдачи (статус «${order.status}»)`,
+        409, ORDER_ERRORS.ORDER_NOT_READY);
+    }
+
+    // Шаг 1. Статус «Выдан». Условие в запросе не даст выдать заказ дважды
+    // при одновременных нажатиях
+    if (!orderRepository.markIssued(id)) {
+      throw new AppError(`Заказ ${order.trackNumber} уже выдан клиенту`, 409, ORDER_ERRORS.ORDER_ALREADY_ISSUED);
+    }
+
+    // Шаг 2. Освобождение ячейки
+    const cell = cellRepository.updateStatus(order.cell.id, 'Свободна');
+
+    return { order: orderRepository.findById(id), cell };
+  });
+
+  logger.info(`Выдан заказ ${result.order.trackNumber} клиенту ${result.order.client.email}: `
+    + `ячейка № ${result.cell.cellNumber} освобождена`
+    + `${context.adminId ? `, администратор id=${context.adminId}` : ''}`);
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 //  Списки заказов (16-й день): «Мои заказы» и «Все заказы»
 // ---------------------------------------------------------------------------
 
@@ -361,6 +416,7 @@ function listAllOrders(query = {}) {
 
 module.exports = {
   receiveOrder,
+  issueOrder,
   resolveClient,
   parseOrderId,
   getOrderForUser,
