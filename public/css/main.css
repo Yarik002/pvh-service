@@ -220,6 +220,10 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv11";
+  /* Случайно вылезший за край элемент не должен давать горизонтальную
+     прокрутку всей страницы на телефоне; clip, в отличие от hidden,
+     не ломает «липкую» шапку */
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4 {
@@ -2364,6 +2368,12 @@ button.cell-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow);
   .footer__bottom { flex-direction: column; }
   .choice { grid-template-columns: 1fr; }
   .locker__grid { gap: 6px; }
+  /* Длинные слова («Администрирование») в крупном заголовке не помещаются
+     в ширину телефона: шрифт меньше, разрешён перенос по слогам */
+  h1 { font-size: 25px; hyphens: auto; overflow-wrap: break-word; }
+  .hero__title { font-size: 32px; }
+  /* Гостю на узком экране в шапке остаётся «Войти»; «Регистрация» — в меню */
+  .header__actions a[href="/register.html"] { display: none; }
   .locker__cell { font-size: 10px; padding: 5px; }
   .header__brand-text { font-size: 15px; }
 }

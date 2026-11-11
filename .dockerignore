@@ -25,5 +25,4 @@ docker-compose.yml
 coverage
 
 # Модульные тесты и документация в рабочем образе не используются
-tests
 docs

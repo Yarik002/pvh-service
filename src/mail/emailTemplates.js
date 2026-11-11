@@ -30,13 +30,16 @@ function htmlLayout({ title, content }) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#202124;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:24px 12px;">
+<body style="margin:0;padding:0;background:#f3f1eb;font-family:Arial,Helvetica,sans-serif;color:#1a1915;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f1eb;padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e4e0d6;">
           <tr>
-            <td style="background:#1a56db;padding:20px 28px;color:#ffffff;font-size:18px;font-weight:bold;">
+            <td style="height:6px;line-height:6px;font-size:0;background:#ffcd2e;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="background:#1a1915;padding:20px 28px;color:#ffffff;font-size:18px;font-weight:bold;">
               Сервис трекинга заказов и инвентаря для ПВЗ
             </td>
           </tr>
@@ -46,7 +49,7 @@ function htmlLayout({ title, content }) {
             </td>
           </tr>
           <tr>
-            <td style="padding:16px 28px;background:#f8f9fa;color:#5f6368;font-size:12px;line-height:1.5;">
+            <td style="padding:16px 28px;background:#f7f5f0;color:#66625a;font-size:12px;line-height:1.5;">
               Письмо отправлено автоматически, отвечать на него не нужно.<br>
               Учебный проект по предмету «Разработка и сопровождение программного обеспечения».
             </td>
@@ -63,7 +66,7 @@ function htmlLayout({ title, content }) {
 function htmlButton(url, label) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
     <tr>
-      <td style="background:#1a56db;border-radius:6px;">
+      <td style="background:#1a1915;border-radius:10px;">
         <a href="${escapeHtml(url)}"
            style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;">
           ${escapeHtml(label)}
@@ -118,11 +121,11 @@ function confirmationEmail({ name, email, confirmUrl, token, expiresInHours = 24
         Чтобы подтвердить адрес и активировать учётную запись, нажмите кнопку:
       </p>
       ${htmlButton(confirmUrl, 'Подтвердить адрес')}
-      <p style="margin:0 0 12px;font-size:13px;color:#5f6368;line-height:1.6;">
+      <p style="margin:0 0 12px;font-size:13px;color:#66625a;line-height:1.6;">
         Если кнопка не работает, скопируйте ссылку в адресную строку браузера:<br>
-        <span style="word-break:break-all;color:#1a56db;">${escapeHtml(confirmUrl)}</span>
+        <span style="word-break:break-all;color:#1a1915;text-decoration:underline;">${escapeHtml(confirmUrl)}</span>
       </p>
-      <p style="margin:0;font-size:13px;color:#5f6368;line-height:1.6;">
+      <p style="margin:0;font-size:13px;color:#66625a;line-height:1.6;">
         Ссылка действует ${expiresInHours} ч. Если вы не регистрировались в сервисе,
         просто проигнорируйте это письмо.
       </p>
@@ -167,12 +170,12 @@ function orderReceivedEmail({ name, trackNumber, cellNumber, description }) {
       </p>
       <table role="presentation" cellpadding="0" cellspacing="0"
              style="margin:0 0 12px;font-size:15px;line-height:1.8;">
-        <tr><td style="color:#5f6368;padding-right:12px;">Трек-номер:</td>
+        <tr><td style="color:#66625a;padding-right:12px;">Трек-номер:</td>
             <td><b>${escapeHtml(trackNumber)}</b></td></tr>
-        <tr><td style="color:#5f6368;padding-right:12px;">Ячейка:</td>
+        <tr><td style="color:#66625a;padding-right:12px;">Ячейка:</td>
             <td><b>${escapeHtml(cellNumber)}</b></td></tr>
         ${description
-          ? `<tr><td style="color:#5f6368;padding-right:12px;">Описание:</td>
+          ? `<tr><td style="color:#66625a;padding-right:12px;">Описание:</td>
              <td>${escapeHtml(description)}</td></tr>`
           : ''}
       </table>

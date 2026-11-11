@@ -373,7 +373,36 @@ function renderNotFoundContent({ path }) {
       </div>`;
 }
 
+/**
+ * Страница отказа в доступе для браузера (24-й день): 401 — нужно войти,
+ * 403 — у роли нет прав на раздел. Раньше браузер в этих случаях получал
+ * ответ в формате JSON, непонятный пользователю.
+ *
+ * @param {{status: number, path: string}} options
+ * @returns {string}
+ */
+function renderAccessContent({ status, path }) {
+  const needLogin = status === 401;
+  const next = encodeURIComponent(path || '/');
+
+  return `      <div class="error-page">
+        <div class="error-page__code" aria-hidden="true">${needLogin ? '401' : '403'}</div>
+        <h1>${needLogin ? 'Нужно войти в систему' : 'Доступ запрещён'}</h1>
+        <p class="text-muted">${needLogin
+    ? 'Этот раздел доступен только после входа. Войдите — и вы вернётесь на эту страницу.'
+    : 'Раздел доступен только администратору пункта выдачи.'}</p>
+        <p class="row" style="justify-content: center;">
+          ${needLogin
+    ? `<a class="btn btn--inline" href="/login?next=${escapeHtml(next)}">Войти</a>
+          <a class="btn btn--secondary btn--inline" href="/register">Регистрация</a>`
+    : `<a class="btn btn--inline" href="/orders">Мои заказы</a>
+          <a class="btn btn--secondary btn--inline" href="/">На главную</a>`}
+        </p>
+      </div>`;
+}
+
 module.exports = {
+  renderAccessContent,
   renderField,
   renderRegisterContent,
   renderLoginContent,

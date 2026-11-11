@@ -31,7 +31,8 @@ function escapeHtml(value) {
  * roles — роли, которым доступен раздел:
  *   'public'   — доступен всем;
  *   'user'     — авторизованным пользователям;
- *   'admin'    — только администратору.
+ *   'admin'    — только администратору;
+ *   'guest'    — только тем, кто не вошёл.
  * adminTitle — название раздела для администратора, если отличается;
  * mobileOnly — пункт нужен только в меню на телефоне.
  */
@@ -44,6 +45,9 @@ const NAVIGATION = [
   // Профиль открывается из блока пользователя в шапке; в меню он нужен
   // только на телефоне, где блок пользователя скрыт
   { path: '/profile', title: 'Профиль', roles: 'user', mobileOnly: true },
+  // Гостю на телефоне кнопки входа и регистрации в шапке не помещаются
+  { path: '/login', title: 'Вход', roles: 'guest', mobileOnly: true },
+  { path: '/register', title: 'Регистрация', roles: 'guest', mobileOnly: true },
 ];
 
 /**
@@ -69,6 +73,7 @@ function renderNavigation({ path = '/', role = 'guest', isAuthenticated = false 
     if (item.roles === 'public') return true;
     if (item.roles === 'user') return isAuthenticated;
     if (item.roles === 'admin') return role === 'admin';
+    if (item.roles === 'guest') return !isAuthenticated;
     return false;
   });
 

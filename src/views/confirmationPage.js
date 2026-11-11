@@ -97,14 +97,18 @@ function confirmationPage(result) {
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      background: #f4f5f7; color: #202124; padding: 24px 16px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #f3f1eb; color: #1a1915; padding: 24px 16px;
+      font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
     }
     .card {
-      width: 100%; max-width: 520px; background: #fff; border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.06); overflow: hidden;
+      width: 100%; max-width: 520px; background: #fff; border-radius: 20px;
+      border: 1px solid #e4e0d6; box-shadow: 0 24px 60px -20px rgba(40,32,12,.35); overflow: hidden;
     }
-    .head { padding: 22px 28px; background: #1a56db; color: #fff; font-size: 15px; font-weight: 600; }
+    .head {
+      padding: 26px 28px 20px; background: #1a1915; color: #fff; font-size: 15px; font-weight: 600;
+      background-image: repeating-linear-gradient(-45deg, #ffcd2e 0 10px, #1a1915 10px 20px);
+      background-size: 100% 6px; background-repeat: no-repeat;
+    }
     .body { padding: 28px; }
     .icon {
       width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
@@ -112,26 +116,28 @@ function confirmationPage(result) {
       color: ${view.color}; background: ${view.background};
     }
     h1 { margin: 0 0 12px; font-size: 20px; line-height: 1.3; }
-    p { margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #3c4043; }
+    p { margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #45423b; }
     .details {
-      margin: 0 0 20px; padding: 16px 18px; background: #f8f9fa; border-radius: 8px;
+      margin: 0 0 20px; padding: 16px 18px; background: #f7f5f0; border-radius: 12px;
       font-size: 14px; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px;
     }
-    .details dt { color: #5f6368; }
+    .details dt { color: #66625a; }
     .details dd { margin: 0; font-weight: 600; word-break: break-word; }
     .action {
-      display: inline-block; padding: 12px 24px; background: #1a56db; color: #fff;
-      text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 600;
+      display: inline-block; padding: 13px 24px; background: #1a1915; color: #fff;
+      text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: 600;
     }
-    .action:hover { background: #1746b0; }
-    .foot { padding: 14px 28px; background: #f8f9fa; color: #5f6368; font-size: 12px; line-height: 1.5; }
+    .action:hover { background: #36342d; }
+    .foot { padding: 14px 28px; background: #f7f5f0; color: #66625a; font-size: 12px; line-height: 1.5; }
     @media (prefers-color-scheme: dark) {
-      body { background: #16181d; color: #e8eaed; }
-      .card { background: #202124; }
-      .body p { color: #bdc1c6; }
-      .details { background: #292a2d; }
-      .details dt { color: #9aa0a6; }
-      .foot { background: #292a2d; color: #9aa0a6; }
+      body { background: #11110f; color: #f0ede4; }
+      .card { background: #1a1a17; border-color: #302f2a; }
+      .body p { color: #c9c4b6; }
+      .details { background: #22221e; }
+      .details dt { color: #a8a397; }
+      .action { background: #ffcd2e; color: #1a1915; }
+      .action:hover { background: #ffd95c; }
+      .foot { background: #22221e; color: #a8a397; }
     }
   </style>
 </head>

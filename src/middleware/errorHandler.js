@@ -64,7 +64,7 @@ function errorHandler(error, req, res, next) { // eslint-disable-line no-unused-
   // Ошибка «страница не найдена» отдаётся браузеру оформленной страницей,
   // а программам (и всем обращениям к API) — в формате JSON.
   // Формат определяется заголовком Accept: браузер запрашивает text/html.
-  const wantsHtml = status === 404
+  const wantsHtml = [401, 403, 404].includes(status)
     && !req.originalUrl.startsWith('/api')
     && req.accepts(['html', 'json']) === 'html';
 
@@ -73,12 +73,19 @@ function errorHandler(error, req, res, next) { // eslint-disable-line no-unused-
     // очередь, обращается к настройкам приложения, и порядок загрузки
     // модулей должен оставаться предсказуемым
     const { renderPage } = require('../views/layout');
-    const { renderNotFoundContent } = require('../views/authPages');
+    const { renderNotFoundContent, renderAccessContent } = require('../views/authPages');
 
+    // 401 и 403 (24-й день): браузеру — понятная страница вместо JSON
+    const titles = { 401: 'Требуется вход', 403: 'Доступ запрещён', 404: 'Страница не найдена' };
+    const user = req.user ? { name: req.user.name, email: req.user.email, role: req.user.role } : null;
     const html = renderPage({
-      title: 'Страница не найдена',
+      title: titles[status],
       path: req.path,
-      content: renderNotFoundContent({ path: req.path }),
+      content: status === 404
+        ? renderNotFoundContent({ path: req.path })
+        : renderAccessContent({ status, path: req.originalUrl }),
+      isAuthenticated: Boolean(user),
+      user,
     });
 
     res.status(status).type('html').send(html);
