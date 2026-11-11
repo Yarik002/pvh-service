@@ -1,0 +1,139 @@
+'use strict';
+
+/**
+ * Разметка страниц «Мои заказы» и «Все заказы» (17-й день практики).
+ *
+ * Одна разметка на обе роли: клиент видит свои заказы, администратор —
+ * заказы всех клиентов с дополнительным столбцом «Клиент». Данные загружает
+ * сценарий public/js/orders.js через API 16-го дня:
+ *   GET /api/orders/my — «Мои заказы»;
+ *   GET /api/orders    — «Все заказы» (администратор).
+ *
+ * Панель фильтров: вкладки статусов со счётчиками, поиск и выбор сортировки
+ * (на телефоне, где заголовков столбцов не видно). Нажатие на заголовок
+ * столбца меняет сортировку.
+ */
+
+/** Значок лупы в поле поиска. */
+const SEARCH_ICON = `<svg class="field__affix-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
+
+/**
+ * Заголовок столбца с сортировкой.
+ * @param {string} key  поле сортировки API (receivedAt, trackNumber, …)
+ * @param {string} title подпись столбца
+ */
+function sortableHeader(key, title) {
+  return `<th scope="col" data-sort="${key}" aria-sort="none"><button class="sort-button" type="button">${title}</button></th>`;
+}
+
+/**
+ * Содержимое страницы заказов.
+ * @param {{isAdmin?: boolean}} [options]
+ * @returns {string}
+ */
+function renderOrdersContent({ isAdmin = false } = {}) {
+  const title = isAdmin ? 'Все заказы' : 'Мои заказы';
+  const subtitle = isAdmin
+    ? 'Заказы всех клиентов пункта выдачи: поиск по трек-номеру, клиенту и описанию, '
+      + 'фильтр по статусу и сортировка по любому столбцу.'
+    : 'Ваши посылки в пункте выдачи. Когда заказ поступит, здесь появится номер ячейки, '
+      + 'а статус обновится сам — перезагружать страницу не нужно.';
+
+  const actions = isAdmin
+    ? `<div class="page-header__actions">
+          <a class="btn btn--accent btn--inline" href="/receive">Принять посылку</a>
+        </div>`
+    : '';
+
+  // Столбцы таблицы: у администратора дополнительно «Клиент» и «Действия»
+  const headers = [
+    sortableHeader('trackNumber', 'Трек-номер'),
+    '<th scope="col">Описание</th>',
+    isAdmin ? sortableHeader('client', 'Клиент') : '',
+    sortableHeader('cell', 'Ячейка'),
+    sortableHeader('status', 'Статус'),
+    sortableHeader('receivedAt', 'Поступил'),
+    sortableHeader('issuedAt', 'Выдан'),
+    isAdmin ? '<th scope="col" class="table__actions">Действия</th>' : '',
+  ].filter(Boolean).map((cell) => `              ${cell}`).join('\n');
+
+  const columns = isAdmin ? 8 : 6;
+
+  const sortOptions = [
+    ['receivedAt:desc', 'Сначала новые'],
+    ['receivedAt:asc', 'Сначала старые'],
+    ['status:asc', 'По статусу'],
+    ['cell:asc', 'По номеру ячейки'],
+    ['trackNumber:asc', 'По трек-номеру'],
+    ['issuedAt:desc', 'По дате выдачи'],
+    ...(isAdmin ? [['client:asc', 'По клиенту']] : []),
+  ].map(([value, label]) => `              <option value="${value}">${label}</option>`).join('\n');
+
+  return `      <div class="page-header">
+        <div class="page-header__text">
+          <p class="eyebrow">${isAdmin ? 'Администратор · заказы' : 'Личный кабинет'}</p>
+          <h1>${title}</h1>
+          <p class="page-header__subtitle">${subtitle}</p>
+        </div>
+        ${actions}
+      </div>
+
+${isAdmin ? '' : `      <div class="pickup-banner" id="pickup-banner" hidden>
+        <p class="pickup-banner__text"><strong id="pickup-title">Заказы ждут вас</strong><br>
+          <span id="pickup-text">Назовите трек-номер администратору пункта выдачи.</span></p>
+        <div class="pickup-banner__cells" id="pickup-cells" aria-label="Ячейки с вашими заказами"></div>
+      </div>
+`}
+      <div class="toolbar" id="orders-toolbar">
+        <div class="segmented" role="group" aria-label="Фильтр по статусу">
+          <button class="segmented__item" type="button" data-status="all" aria-pressed="true">Все <span class="segmented__count" id="count-all">0</span></button>
+          <button class="segmented__item" type="button" data-status="transit" aria-pressed="false">В пути <span class="segmented__count" id="count-transit">0</span></button>
+          <button class="segmented__item" type="button" data-status="ready" aria-pressed="false">Готов к выдаче <span class="segmented__count" id="count-ready">0</span></button>
+          <button class="segmented__item" type="button" data-status="issued" aria-pressed="false">Выдан <span class="segmented__count" id="count-issued">0</span></button>
+        </div>
+
+        <div class="field field__affix toolbar__search" data-field="search">
+          <label class="visually-hidden" for="orders-search">Поиск заказов</label>
+          ${SEARCH_ICON}
+          <input class="field__input" id="orders-search" name="search" type="search" maxlength="100"
+                 placeholder="${isAdmin ? 'Трек-номер, клиент или описание' : 'Трек-номер или описание'}" autocomplete="off">
+        </div>
+
+        <div class="field" data-field="sort">
+          <label class="visually-hidden" for="orders-sort">Сортировка</label>
+          <select class="field__select" id="orders-sort" name="sort">
+${sortOptions}
+          </select>
+        </div>
+
+        <span class="toolbar__spacer"></span>
+        <span class="live" id="orders-live" aria-live="polite"><span class="live__dot" aria-hidden="true"></span><span id="orders-updated">Загрузка…</span></span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table table--cards" id="orders-table" data-admin="${isAdmin}">
+          <caption class="visually-hidden">${title}</caption>
+          <thead>
+            <tr>
+${headers}
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr><td colspan="${columns}" class="text-muted">Загрузка заказов…</td></tr>
+          </tbody>
+        </table>
+
+        <div class="empty" id="orders-empty" hidden>
+          <div class="empty__box" aria-hidden="true"></div>
+          <p class="empty__title" id="orders-empty-title">Заказов пока нет</p>
+          <p id="orders-empty-text">${isAdmin
+    ? 'Примите первую посылку на странице «Приёмка товара».'
+    : 'Когда пункт выдачи примет посылку на ваше имя, она появится здесь.'}</p>
+        </div>
+      </div>
+
+      <p class="text-muted text-small" id="orders-summary" aria-live="polite"></p>`;
+}
+
+module.exports = { renderOrdersContent };

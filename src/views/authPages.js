@@ -72,12 +72,47 @@ ${withToggle}
 }
 
 /**
+ * Тёмная панель рядом с формой входа и регистрации: короткое пояснение,
+ * зачем нужна учётная запись, и мини-стеллаж в фирменном стиле.
+ *
+ * @param {{eyebrow: string, title: string, text: string, points: string[]}} options
+ * @returns {string}
+ */
+function renderAuthAside({ eyebrow, title, text, points }) {
+  const items = points.map((point) => `              <li>${escapeHtml(point)}</li>`).join('\n');
+
+  return `        <aside class="auth__aside">
+          <div>
+            <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+            <h2>${escapeHtml(title)}</h2>
+            <p>${escapeHtml(text)}</p>
+            <ul class="ticks">
+${items}
+            </ul>
+          </div>
+          <div class="auth__locker" aria-hidden="true">${'<span></span>'.repeat(18)}</div>
+        </aside>`;
+}
+
+/**
  * Содержимое страницы регистрации.
  * @returns {string}
  */
 function renderRegisterContent() {
-  return `      <div class="card card--narrow">
-        <h1 class="card__title">Регистрация</h1>
+  return `      <div class="auth">
+${renderAuthAside({
+    eyebrow: 'Новый клиент',
+    title: 'Посылки под присмотром',
+    text: 'После регистрации все ваши заказы в пункте выдачи будут видны в одном списке.',
+    points: [
+      'письмо на почту, когда посылка поступила',
+      'номер ячейки и статус заказа в кабинете',
+      'статусы обновляются без перезагрузки страницы',
+    ],
+  })}
+      <div class="card auth__card">
+        <p class="eyebrow">Регистрация</p>
+        <h1 class="card__title">Создайте учётную запись</h1>
         <p class="card__subtitle">
           Создайте учётную запись, чтобы отслеживать свои посылки.
         </p>
@@ -150,6 +185,7 @@ ${renderField({
         <div class="card__footer">
           Уже есть учётная запись? <a href="/login">Войдите</a>.
         </div>
+      </div>
       </div>`;
 }
 
@@ -159,22 +195,34 @@ ${renderField({
  * @returns {string}
  */
 function renderLoginContent({ next = '/' } = {}) {
-  return `      <div class="card card--narrow">
+  return `      <div class="auth">
+${renderAuthAside({
+    eyebrow: 'Сервис ПВЗ',
+    title: 'Где моя посылка? Уже в ячейке.',
+    text: 'Войдите, чтобы увидеть свои заказы, номер ячейки и статус выдачи.',
+    points: [
+      'клиент: свои заказы, фильтры и поиск',
+      'администратор: приёмка, выдача и склад',
+      'вход по адресу почты и паролю',
+    ],
+  })}
+      <div class="card auth__card">
+        <p class="eyebrow">Вход</p>
         <h1 class="card__title">Вход в систему</h1>
         <p class="card__subtitle">
           Введите адрес электронной почты и пароль, указанные при регистрации.
         </p>
 
-        <form class="form" id="login-form" novalidate>
+        <form class="form" id="login-form" data-rules="login" novalidate>
           <input type="hidden" name="next" value="${escapeHtml(next)}">
 
 ${renderField({
     name: 'email',
-    label: 'Адрес электронной почты',
-    type: 'email',
+    label: 'Адрес электронной почты или логин',
+    type: 'text',
     placeholder: 'ivanov@mail.ru',
     required: true,
-    autocomplete: 'email',
+    autocomplete: 'username',
     autofocus: true,
     maxlength: 254,
   })}
@@ -197,6 +245,7 @@ ${renderField({
           Нет учётной записи? <a href="/register">Зарегистрируйтесь</a>.<br>
           Забыли пароль? Обратитесь к администратору пункта выдачи.
         </div>
+      </div>
       </div>`;
 }
 
@@ -306,8 +355,9 @@ ${resendForm}
  * @returns {string}
  */
 function renderNotFoundContent({ path }) {
-  return `      <div class="card card--narrow">
-        <h1 class="card__title">Страница не найдена</h1>
+  return `      <div class="error-page">
+        <div class="error-page__code" aria-hidden="true">404</div>
+        <h1>Страница не найдена</h1>
         <div class="alert alert--warning" role="alert">
           <span class="alert__icon" aria-hidden="true">!</span>
           <div class="alert__body">
@@ -315,8 +365,8 @@ function renderNotFoundContent({ path }) {
             или была перемещена.
           </div>
         </div>
-        <p>Проверьте адрес либо вернитесь на главную страницу.</p>
-        <p>
+        <p class="text-muted">Проверьте адрес либо вернитесь на главную страницу.</p>
+        <p class="row" style="justify-content: center;">
           <a class="btn btn--inline" href="/">На главную</a>
           <a class="btn btn--secondary btn--inline" href="/login">Войти</a>
         </p>

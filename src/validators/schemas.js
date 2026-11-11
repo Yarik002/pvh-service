@@ -17,6 +17,7 @@ const {
   differsFrom,
 } = require('./rules');
 const { noCommonWord, noRepeatedPattern } = require('./passwordRules');
+const config = require('../config');
 
 /**
  * Требования к паролю, проверяемые по данным самой формы
@@ -104,12 +105,29 @@ const changePasswordSchema = {
   },
 };
 
+/**
+ * Короткий логин администратора на форме входа.
+ *
+ * Если вместо адреса почты введён логин администратора (ADMIN_LOGIN,
+ * по умолчанию admin), он заменяется адресом почты администратора
+ * (ADMIN_EMAIL). Дальше вход идёт обычным порядком: проверка пароля,
+ * подтверждения адреса и роли выполняется для этой учётной записи.
+ */
+function adminLoginAlias() {
+  return (value) => {
+    const text = String(value).trim();
+    if (text.toLowerCase() === config.seed.adminLogin) return { ok: true, value: config.seed.adminEmail };
+    return { ok: true, value: text };
+  };
+}
+
 /** Схема входа в систему. */
 const loginSchema = {
   email: {
     label: 'Адрес электронной почты',
     rules: [
       required('Адрес электронной почты'),
+      adminLoginAlias(),
       emailPattern(),
     ],
   },

@@ -25,7 +25,9 @@ const {
 const { renderAdminContent } = require('../views/adminPage');
 const { renderCellsContent } = require('../views/cellsPage');
 const { renderReceiveContent } = require('../views/receivePage');
+const { renderOrdersContent } = require('../views/ordersPage');
 const { optionalAuth, requireAuth, requireRole } = require('../middleware/authenticate');
+const cellRepository = require('../repositories/cellRepository');
 
 const router = express.Router();
 
@@ -69,7 +71,8 @@ router.get('/', optionalAuth(), (req, res, next) => {
       path: '/',
       description: 'Сервис трекинга заказов и инвентаря для пункта выдачи заказов: '
         + 'учёт посылок, адресное хранение и выдача заказов.',
-      content: renderHomeContent({ isAuthenticated, user }),
+      // Схема стеллажа строится по реальному состоянию ячеек
+      content: renderHomeContent({ isAuthenticated, user, cells: cellRepository.findAll() }),
       isAuthenticated,
       user,
     });
@@ -343,52 +346,21 @@ router.get(
 );
 
 /**
- * Содержимое страницы раздела, который ещё не реализован.
- *
- * Ссылки на такие разделы уже есть в меню, поэтому вместо ошибки 404
- * пользователь видит понятное сообщение с указанием этапа разработки.
- *
- * @param {{title: string, description: string, plannedStage: string}} options
- * @returns {string}
- */
-function renderPlannedContent({ title, description, plannedStage }) {
-  return `      <div class="page-header">
-        <h1>${title}</h1>
-        <p class="page-header__subtitle">${description}</p>
-      </div>
-
-      <div class="alert alert--info" role="status">
-        <span class="alert__icon" aria-hidden="true">i</span>
-        <div class="alert__body">
-          <strong class="alert__title">Раздел находится в разработке</strong>
-          Он будет реализован на этапе «${plannedStage}» согласно плану практики.
-          Сейчас доступны регистрация, вход, подтверждение адреса
-          и административная сводка.
-        </div>
-      </div>
-
-      <p>
-        <a class="btn btn--inline" href="/">На главную</a>
-        <a class="btn btn--secondary btn--inline" href="/admin">Администрирование</a>
-      </p>`;
-}
-
-/**
  * GET /orders
- * Страница заказов клиента (реализуется на 16–17-м дне практики).
+ * Страница заказов (17-й день): клиенту — «Мои заказы»,
+ * администратору — «Все заказы» с дополнительным столбцом «Клиент».
  */
 router.get('/orders', requireAuth(), (req, res, next) => {
   try {
+    const isAdmin = req.user.role === 'admin';
     const html = renderPage({
-      title: 'Мои заказы',
+      title: isAdmin ? 'Все заказы' : 'Мои заказы',
       path: '/orders',
-      content: renderPlannedContent({
-        title: 'Мои заказы',
-        description: 'Список ваших заказов с фильтрацией по состоянию.',
-        plannedStage: 'дни 16–17, списки заказов',
-      }),
+      description: 'Список заказов с фильтром по статусу, поиском и сортировкой.',
+      content: renderOrdersContent({ isAdmin }),
       isAuthenticated: true,
       user: toViewUser(req.user),
+      scripts: ['/js/api.js', '/js/orders.js'],
     });
 
     res.status(200).type('html').send(html);

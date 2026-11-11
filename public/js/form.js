@@ -129,6 +129,47 @@
   };
 
   /**
+   * Особые правила отдельных форм. Форма указывает свой набор атрибутом
+   * data-rules, например <form data-rules="login">.
+   *
+   * На форме входа требования к новому паролю (8 символов, буква и цифра)
+   * не проверяются: пользователь вводит уже существующий пароль. Вместо
+   * адреса почты администратор может ввести короткий логин (admin).
+   */
+  var FORM_RULES = {
+    login: {
+      email: function (value) {
+        var text = String(value || '').trim();
+        if (text === '') return 'Введите адрес электронной почты или логин';
+        if (text.indexOf('@') === -1) {
+          // Без знака @ — это логин; проверит его сервер
+          return /^[A-Za-z0-9._-]{3,32}$/.test(text)
+            ? null
+            : 'Укажите адрес электронной почты, например ivanov@mail.ru';
+        }
+        return RULES.email(text);
+      },
+      password: function (value) {
+        if (String(value || '') === '') return 'Введите пароль';
+        if (String(value).length > 128) return 'Пароль слишком длинный (не более 128 символов)';
+        return null;
+      },
+    },
+  };
+
+  /**
+   * Правило проверки поля с учётом набора правил формы.
+   * @param {string} name имя поля
+   * @param {HTMLFormElement} [form]
+   * @returns {Function|undefined}
+   */
+  function ruleFor(name, form) {
+    var set = form && form.getAttribute ? form.getAttribute('data-rules') : null;
+    if (set && FORM_RULES[set] && FORM_RULES[set][name]) return FORM_RULES[set][name];
+    return RULES[name];
+  }
+
+  /**
    * Находит контейнер поля по имени.
    * @param {string} name
    * @returns {HTMLElement|null}
@@ -206,10 +247,11 @@
    * Проверяет одно поле.
    * @param {string} name
    * @param {object} values
+   * @param {HTMLFormElement} [form] форма — для её особых правил (data-rules)
    * @returns {string|null} сообщение об ошибке либо null
    */
-  function validateField(name, values) {
-    var rule = RULES[name];
+  function validateField(name, values, form) {
+    var rule = ruleFor(name, form);
     if (!rule) return null;
     return rule(values[name], values);
   }
@@ -226,9 +268,9 @@
     var valid = true;
 
     Object.keys(values).forEach(function (name) {
-      if (!RULES[name]) return;
+      if (!ruleFor(name, form)) return;
 
-      var message = validateField(name, values);
+      var message = validateField(name, values, form);
       if (message) {
         errors[name] = message;
         valid = false;
@@ -275,13 +317,13 @@
     var elements = form.querySelectorAll('input, select, textarea');
 
     Array.prototype.forEach.call(elements, function (element) {
-      if (!element.name || !RULES[element.name]) return;
+      if (!element.name || !ruleFor(element.name, form)) return;
 
       var handler = function () {
         var container = fieldContainer(element.name);
         if (container && container.classList.contains('field--invalid')) {
           var values = collectValues(form);
-          setFieldError(element.name, validateField(element.name, values));
+          setFieldError(element.name, validateField(element.name, values, form));
         }
       };
 
@@ -343,5 +385,6 @@
     setBusy: setBusy,
     reportError: reportError,
     RULES: RULES,
+    FORM_RULES: FORM_RULES,
   };
 }());

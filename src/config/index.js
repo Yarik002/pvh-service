@@ -155,6 +155,9 @@ const config = {
     adminEmail: readString('ADMIN_EMAIL', 'admin@pvh.local'),
     adminName: readString('ADMIN_NAME', 'Администратор ПВЗ'),
     adminPassword: readString('ADMIN_PASSWORD', ''),
+    // Короткий логин администратора: на форме входа вместо адреса почты
+    // можно ввести это слово (например, admin)
+    adminLogin: readString('ADMIN_LOGIN', 'admin').toLowerCase(),
   },
 
   /** Каталог со статическими файлами клиентской части (добавится на 9-й день) */

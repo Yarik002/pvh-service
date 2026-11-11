@@ -18,10 +18,17 @@
  */
 function renderAdminContent() {
   return `      <div class="page-header">
-        <h1>Администрирование</h1>
-        <p class="page-header__subtitle">
-          Сводка по состоянию пункта выдачи, учётные записи и справочник ячеек.
-        </p>
+        <div class="page-header__text">
+          <p class="eyebrow">Администратор · сводка</p>
+          <h1>Администрирование</h1>
+          <p class="page-header__subtitle">
+            Сводка по состоянию пункта выдачи, учётные записи и справочник ячеек.
+          </p>
+        </div>
+        <div class="page-header__actions">
+          <a class="btn btn--accent btn--inline" href="/receive">Принять посылку</a>
+          <a class="btn btn--secondary btn--inline" href="/orders">Все заказы</a>
+        </div>
       </div>
 
       <h2>Состояние пункта выдачи</h2>
@@ -34,7 +41,7 @@ function renderAdminContent() {
           <div class="stat__value" id="stat-cells">—</div>
           <div class="stat__label">ячеек хранения</div>
         </div>
-        <div class="stat">
+        <div class="stat stat--accent">
           <div class="stat__value" id="stat-free">—</div>
           <div class="stat__label">свободно ячеек</div>
         </div>

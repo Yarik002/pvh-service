@@ -172,8 +172,9 @@
     });
 
     // При переходе на широкий экран меню должно вернуться в обычное состояние
+    // (ширина совпадает с правилом @media (max-width: 1100px) в main.css)
     window.addEventListener('resize', function () {
-      if (window.innerWidth > 768) closeMenu();
+      if (window.innerWidth > 1100) closeMenu();
     });
   }
 

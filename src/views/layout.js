@@ -32,13 +32,18 @@ function escapeHtml(value) {
  *   'public'   — доступен всем;
  *   'user'     — авторизованным пользователям;
  *   'admin'    — только администратору.
+ * adminTitle — название раздела для администратора, если отличается;
+ * mobileOnly — пункт нужен только в меню на телефоне.
  */
 const NAVIGATION = [
   { path: '/', title: 'Главная', roles: 'public' },
-  { path: '/orders', title: 'Мои заказы', roles: 'user' },
+  { path: '/orders', title: 'Мои заказы', adminTitle: 'Все заказы', roles: 'user' },
   { path: '/cells', title: 'Ячейки', roles: 'user' },
   { path: '/receive', title: 'Приёмка товара', roles: 'admin' },
   { path: '/admin', title: 'Администрирование', roles: 'admin' },
+  // Профиль открывается из блока пользователя в шапке; в меню он нужен
+  // только на телефоне, где блок пользователя скрыт
+  { path: '/profile', title: 'Профиль', roles: 'user', mobileOnly: true },
 ];
 
 /**
@@ -69,12 +74,15 @@ function renderNavigation({ path = '/', role = 'guest', isAuthenticated = false 
 
   const links = items.map((item) => {
     const active = isActive(path, item.path);
-    const adminClass = item.roles === 'admin' ? ' nav__item--admin' : '';
+    const classes = ['nav__item'];
+    if (item.roles === 'admin') classes.push('nav__item--admin');
+    if (item.mobileOnly) classes.push('nav__item--mobile');
+    const title = role === 'admin' && item.adminTitle ? item.adminTitle : item.title;
 
-    return `        <li class="nav__item${adminClass}">
+    return `        <li class="${classes.join(' ')}">
           <a class="nav__link" href="${escapeHtml(item.path)}"${
   active ? ' aria-current="page"' : ''
-}>${escapeHtml(item.title)}</a>
+}>${escapeHtml(title)}</a>
         </li>`;
   }).join('\n');
 
@@ -97,16 +105,29 @@ function renderUserArea({ isAuthenticated = false, user = null } = {}) {
     const roleLabel = user.role === 'admin' ? 'администратор' : 'клиент';
     const initial = String(user.name || user.email || '?').trim().charAt(0).toUpperCase();
 
-    return `        <div class="header__user">
-          <span class="badge badge--muted" title="Роль: ${escapeHtml(roleLabel)}">${escapeHtml(initial)}</span>
-          <span class="header__user-name" title="${escapeHtml(user.email)}">${escapeHtml(user.name)}</span>
-        </div>
-        <button class="btn btn--secondary btn--sm btn--inline" type="button" id="logout-button">Выйти</button>`;
+    return `        <a class="header__user" href="/profile" title="Профиль: ${escapeHtml(user.email)}">
+          <span class="header__avatar" aria-hidden="true">${escapeHtml(initial)}</span>
+          <span class="header__user-text">
+            <span class="header__user-name">${escapeHtml(user.name)}</span>
+            <span class="header__user-role">${escapeHtml(roleLabel)}</span>
+          </span>
+        </a>
+        <button class="btn btn--ghost btn--sm btn--inline" type="button" id="logout-button">Выйти</button>`;
   }
 
-  return `        <a class="btn btn--secondary btn--sm btn--inline" href="/login.html">Войти</a>
+  return `        <a class="btn btn--ghost btn--sm btn--inline" href="/login.html">Войти</a>
         <a class="btn btn--sm btn--inline" href="/register.html">Регистрация</a>`;
 }
+
+/** Знак приложения: стеллаж 3×3, две ячейки заняты (жёлтые). */
+const BRAND_MARK = `<span class="header__brand-mark" aria-hidden="true">ПВЗ${'<i></i>'.repeat(9)}</span>`;
+
+/**
+ * Шрифты подключаются с Google Fonts. Без интернета страница остаётся
+ * читаемой: в таблице стилей указаны системные шрифты на замену.
+ */
+const FONTS = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600'
+  + '&amp;family=Onest:wght@400;500;600;700&amp;family=Unbounded:wght@500;600;700&amp;display=swap';
 
 /**
  * Формирует HTML-документ страницы.
@@ -143,18 +164,29 @@ function renderPage(options) {
     .map((src) => `  <script src="${escapeHtml(src)}" defer></script>`)
     .join('\n');
 
+  const footerLinks = isAuthenticated
+    ? `<li><a href="/orders">${role === 'admin' ? 'Все заказы' : 'Мои заказы'}</a></li>
+            <li><a href="/cells">Ячейки</a></li>
+            <li><a href="/profile">Профиль</a></li>`
+    : `<li><a href="/login.html">Вход</a></li>
+            <li><a href="/register.html">Регистрация</a></li>`;
+
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="${escapeHtml(description)}">
-  <meta name="theme-color" content="#1a56db">
+  <meta name="theme-color" content="#f3f1eb">
   <meta name="color-scheme" content="light dark">
   <title>${escapeHtml(fullTitle)}</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <!-- Тема применяется до загрузки стилей и отрисовки страницы,
        поэтому сценарий подключён без defer: так нет мерцания светлой темы -->
   <script src="/js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="${FONTS}">
   <link rel="stylesheet" href="/css/main.css">
   <script src="/js/layout.js" defer></script>
 ${scriptTags}
@@ -164,9 +196,9 @@ ${scriptTags}
 
   <header class="header">
     <div class="container header__inner">
-      <a class="header__brand" href="/">
-        <span class="header__brand-mark" aria-hidden="true">ПВЗ</span>
-        <span class="header__brand-text">Сервис ПВЗ</span>
+      <a class="header__brand" href="/" aria-label="Сервис ПВЗ — на главную">
+        ${BRAND_MARK}
+        <span class="header__brand-text">Сервис ПВЗ<small>трекинг · склад</small></span>
       </a>
 
       <button class="header__toggle" type="button" id="menu-toggle"
@@ -199,20 +231,20 @@ ${content}
     <div class="container">
       <div class="footer__grid">
         <div>
-          <p class="footer__title">Сервис трекинга заказов и инвентаря для ПВЗ</p>
-          <p>Учебный проект по предмету «Разработка и сопровождение программного
+          <p class="footer__brand">${BRAND_MARK} Сервис ПВЗ</p>
+          <p class="footer__lead">Сервис трекинга заказов и инвентаря для ПВЗ.
+             Учебный проект по предмету «Разработка и сопровождение программного
              обеспечения». Минский колледж предпринимательства, 2026 год.</p>
         </div>
         <div>
           <p class="footer__title">Разделы</p>
           <ul class="footer__list">
             <li><a href="/">Главная</a></li>
-            <li><a href="/login.html">Вход</a></li>
-            <li><a href="/register.html">Регистрация</a></li>
+            ${footerLinks}
           </ul>
         </div>
         <div>
-          <p class="footer__title">Сведения о проекте</p>
+          <p class="footer__title">О проекте</p>
           <ul class="footer__list">
             <li>Исполнитель: Кирдун Я.С.</li>
             <li>Группа: ПО-2409</li>
@@ -222,7 +254,7 @@ ${content}
       </div>
       <div class="footer__bottom">
         <span>© 2026 Минский колледж предпринимательства</span>
-        <span>Сборка v${escapeHtml(config.version)}</span>
+        <span>Сборка v${escapeHtml(config.version)} · Node.js · Express · SQLite</span>
       </div>
     </div>
   </footer>
@@ -231,18 +263,66 @@ ${content}
 }
 
 /**
- * Формирует содержимое главной страницы.
+ * Схема стеллажа на главной странице: реальная занятость ячеек.
+ * Номера заказов и получатели не показываются — только состояние ячеек.
  *
- * @param {{isAuthenticated?: boolean, user?: object|null}} context
+ * @param {{cellNumber: number, status: string}[]} cells
  * @returns {string}
  */
-function renderHomeContent({ isAuthenticated = false, user = null } = {}) {
+function renderLocker(cells = []) {
+  const busy = cells.filter((cell) => cell.status === 'Занята').length;
+  const free = cells.length - busy;
+  const percent = cells.length ? Math.round((busy / cells.length) * 100) : 0;
+
+  const items = cells.map((cell) => {
+    const isBusy = cell.status === 'Занята';
+    return `            <li class="locker__cell${isBusy ? ' locker__cell--busy' : ''}"
+                title="Ячейка ${cell.cellNumber}: ${escapeHtml(String(cell.status).toLowerCase())}">${cell.cellNumber}</li>`;
+  }).join('\n');
+
+  return `        <figure class="locker" aria-label="Состояние склада: занято ${busy} из ${cells.length} ячеек">
+          <div class="locker__head">
+            <p class="locker__title">Склад сейчас</p>
+            <span class="badge badge--success badge--status badge--live">данные из базы</span>
+          </div>
+          <ul class="locker__grid">
+${items || '            <li class="text-muted">Ячейки не заведены</li>'}
+          </ul>
+          <div class="locker__legend">
+            <span><i class="legend-dot" aria-hidden="true"></i>свободно — ${free}</span>
+            <span><i class="legend-dot legend-dot--busy" aria-hidden="true"></i>занято — ${busy}</span>
+            <span>заполненность — ${percent}%</span>
+          </div>
+        </figure>`;
+}
+
+/**
+ * Формирует содержимое главной страницы.
+ *
+ * @param {{isAuthenticated?: boolean, user?: object|null, cells?: object[]}} context
+ * @returns {string}
+ */
+function renderHomeContent({ isAuthenticated = false, user = null, cells = [] } = {}) {
+  const isAdmin = user?.role === 'admin';
+
+  let actions;
+  if (!isAuthenticated || !user) {
+    actions = `<a class="btn btn--lg btn--inline" href="/register.html">Создать учётную запись</a>
+            <a class="btn btn--secondary btn--lg btn--inline" href="/login.html">Войти</a>`;
+  } else if (isAdmin) {
+    actions = `<a class="btn btn--accent btn--lg btn--inline" href="/receive">Принять посылку</a>
+            <a class="btn btn--lg btn--inline" href="/orders">Все заказы</a>`;
+  } else {
+    actions = `<a class="btn btn--lg btn--inline" href="/orders">Мои заказы</a>
+            <a class="btn btn--secondary btn--lg btn--inline" href="/cells">Ячейки склада</a>`;
+  }
+
   const greeting = isAuthenticated && user
     ? `<div class="alert alert--info" role="status">
          <span class="alert__icon" aria-hidden="true">i</span>
          <div class="alert__body">
            <strong class="alert__title">Вы вошли в систему</strong>
-           ${escapeHtml(user.name)}, роль: ${user.role === 'admin' ? 'администратор' : 'клиент'}.
+           ${escapeHtml(user.name)}, роль: ${isAdmin ? 'администратор' : 'клиент'}.
          </div>
        </div>`
     : `<div class="alert alert--info" role="status">
@@ -257,63 +337,87 @@ function renderHomeContent({ isAuthenticated = false, user = null } = {}) {
 
   const quickLinks = [
     {
-      href: '/register.html',
-      title: 'Регистрация',
-      text: 'Создайте учётную запись и подтвердите адрес электронной почты.',
-    },
-    {
-      href: '/login.html',
-      title: 'Вход',
-      text: 'Войдите, чтобы отслеживать свои заказы и получать уведомления.',
-    },
-    {
       href: '/orders',
-      title: 'Мои заказы',
-      text: 'Статусы посылок, фильтрация по состоянию и сортировка по датам.',
+      title: isAdmin ? 'Все заказы' : 'Мои заказы',
+      text: 'Статусы посылок, фильтр по состоянию, поиск и сортировка по датам.',
     },
     {
       href: '/cells',
       title: 'Ячейки хранения',
-      text: 'Сведения о занятости ячеек на складе пункта выдачи.',
+      text: 'Занятость каждой ячейки стеллажа и сводка по складу.',
     },
-  ].map((item) => `        <article class="card">
+    isAdmin
+      ? { href: '/receive', title: 'Приёмка товара', text: 'Оформление посылки и назначение ячейки за пару секунд.' }
+      : { href: '/profile', title: 'Профиль', text: 'Имя, смена пароля и удаление учётной записи.' },
+    isAdmin
+      ? { href: '/admin', title: 'Администрирование', text: 'Пользователи, сводка по заказам и справочник ячеек.' }
+      : { href: '/register.html', title: 'Регистрация', text: 'Учётная запись с подтверждением адреса почты.' },
+  ].map((item) => `        <a class="card card--link" href="${escapeHtml(item.href)}">
           <h3 class="card__title">${escapeHtml(item.title)}</h3>
-          <p class="text-muted">${escapeHtml(item.text)}</p>
-          <a class="btn btn--secondary btn--sm btn--inline" href="${escapeHtml(item.href)}">Перейти</a>
-        </article>`).join('\n');
+          <p class="text-muted" style="margin: 0;">${escapeHtml(item.text)}</p>
+        </a>`).join('\n');
 
-  return `      <div class="page-header">
-        <h1>Сервис трекинга заказов и инвентаря для ПВЗ</h1>
-        <p class="page-header__subtitle">
-          Учёт посылок, адресное хранение в ячейках и выдача заказов клиентам.
-        </p>
-      </div>
+  return `      <section class="hero">
+        <div>
+          <p class="eyebrow">Пункт выдачи заказов</p>
+          <h1 class="hero__title">Каждая посылка — <mark>в своей ячейке</mark></h1>
+          <p class="hero__lead">
+            Приёмка посылок с автоматическим выбором ячейки, письмо клиенту
+            о поступлении и выдача в одно нажатие. Клиент видит статус заказа
+            и номер ячейки в своём кабинете.
+          </p>
+          <div class="hero__actions">
+            ${actions}
+          </div>
+          <p class="hero__note">Статусы заказа: «В пути» → «Готов к выдаче» → «Выдан».</p>
+        </div>
+${renderLocker(cells)}
+      </section>
 
       ${greeting}
 
-      <h2>Основные разделы</h2>
+      <div class="section-title"><h2>Как работает пункт выдачи</h2></div>
+      <ol class="steps">
+        <li class="step">
+          <h3>Приёмка</h3>
+          <p>Администратор вводит трек-номер и получателя. Система сама находит
+             первую свободную ячейку — или ту, что выбрана вручную.</p>
+        </li>
+        <li class="step">
+          <h3>Хранение</h3>
+          <p>Заказ получает статус «Готов к выдаче», ячейка — «Занята».
+             Клиенту уходит письмо с номером ячейки.</p>
+        </li>
+        <li class="step">
+          <h3>Выдача</h3>
+          <p>После подтверждения заказ становится «Выдан», а ячейка
+             освобождается — всё в одной транзакции.</p>
+        </li>
+      </ol>
+
+      <div class="section-title"><h2>Основные разделы</h2></div>
       <div class="grid grid--4">
 ${quickLinks}
       </div>
 
-      <h2>Возможности сервиса</h2>
+      <div class="section-title"><h2>Возможности сервиса</h2></div>
       <div class="grid grid--2">
-        <div class="card">
-          <h3 class="card__title">Для клиента</h3>
-          <ul>
-            <li>отслеживание статуса посылок в режиме реального времени;</li>
-            <li>фильтрация и сортировка списка заказов;</li>
-            <li>уведомления о поступлении заказа на электронную почту;</li>
-            <li>адаптивный интерфейс и выбор светлой или тёмной темы.</li>
+        <div class="card role-card">
+          <div class="role-card__head"><h3>Для клиента</h3><span class="badge badge--muted">client</span></div>
+          <ul class="ticks">
+            <li>статусы посылок обновляются на экране без перезагрузки страницы;</li>
+            <li>фильтр по статусу, поиск по трек-номеру и сортировка;</li>
+            <li>письмо на почту, когда заказ поступил в пункт выдачи;</li>
+            <li>светлая и тёмная тема, удобная работа с телефона.</li>
           </ul>
         </div>
-        <div class="card">
-          <h3 class="card__title">Для администратора</h3>
-          <ul>
+        <div class="card role-card">
+          <div class="role-card__head"><h3>Для администратора</h3><span class="badge badge--info">admin</span></div>
+          <ul class="ticks">
             <li>приёмка посылок с назначением ячейки хранения;</li>
-            <li>выдача заказов с автоматическим освобождением ячейки;</li>
-            <li>управление справочником ячеек и контроль занятости склада;</li>
-            <li>просмотр всех заказов и учётных записей пользователей.</li>
+            <li>выдача заказа с окном подтверждения и освобождением ячейки;</li>
+            <li>редактирование и удаление заказов, ожидаемые поступления;</li>
+            <li>контроль занятости склада и учётных записей.</li>
           </ul>
         </div>
       </div>`;
@@ -321,6 +425,7 @@ ${quickLinks}
 
 module.exports = {
   renderPage,
+  renderLocker,
   renderNavigation,
   renderUserArea,
   renderHomeContent,

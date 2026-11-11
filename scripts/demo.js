@@ -204,7 +204,7 @@ async function main() {
   logger.info('');
   logger.info('Учётная запись администратора:');
   logger.info(`  адрес:  ${config.seed.adminEmail}`);
-  logger.info(`  пароль: ${config.seed.adminPassword || 'Admin#2026Pvh'}`);
+  logger.info(`  пароль: ${config.seed.adminPassword || 'admin'}`);
   logger.info('');
   logger.info('Порядок показа описан в файле docs/Как_показать_проект.md');
   logger.info('');

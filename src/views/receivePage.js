@@ -20,11 +20,17 @@ const { renderField } = require('./authPages');
  */
 function renderReceiveContent() {
   return `      <div class="page-header">
-        <h1>Приёмка товара</h1>
-        <p class="page-header__subtitle">
-          Оформление поступившей посылки: заказ сохраняется, ячейка хранения
-          назначается автоматически или вручную, клиент получает письмо.
-        </p>
+        <div class="page-header__text">
+          <p class="eyebrow">Администратор · приёмка</p>
+          <h1>Приёмка товара</h1>
+          <p class="page-header__subtitle">
+            Оформление поступившей посылки: заказ сохраняется, ячейка хранения
+            назначается автоматически или вручную, клиент получает письмо.
+          </p>
+        </div>
+        <div class="page-header__actions">
+          <a class="btn btn--secondary btn--inline" href="/orders">Все заказы</a>
+        </div>
       </div>
 
       <div class="grid grid--2 receive-layout">
@@ -64,14 +70,16 @@ ${renderField({
 
             <fieldset class="field receive-mode" data-field="cellMode">
               <legend class="field__label">Ячейка хранения</legend>
-              <label class="checkbox">
-                <input type="radio" name="cellMode" value="auto" checked>
-                <span>Автоматически — первая свободная</span>
-              </label>
-              <label class="checkbox">
-                <input type="radio" name="cellMode" value="manual">
-                <span>Выбрать вручную</span>
-              </label>
+              <div class="choice">
+                <label class="checkbox">
+                  <input type="radio" name="cellMode" value="auto" checked>
+                  <span>Автоматически — первая свободная</span>
+                </label>
+                <label class="checkbox">
+                  <input type="radio" name="cellMode" value="manual">
+                  <span>Выбрать вручную</span>
+                </label>
+              </div>
             </fieldset>
 
             <div class="field" data-field="cellId" id="manual-cell" hidden>
@@ -86,7 +94,7 @@ ${renderField({
               Определяется ячейка…
             </p>
 
-            <button class="btn btn--block" type="submit" id="receive-submit">
+            <button class="btn btn--accent btn--lg btn--block" type="submit" id="receive-submit">
               Принять посылку
             </button>
           </form>

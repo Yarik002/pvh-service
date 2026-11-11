@@ -27,8 +27,12 @@ const { analyzePassword } = require('../src/utils/passwordStrength');
 const userRepository = require('../src/repositories/userRepository');
 const cellRepository = require('../src/repositories/cellRepository');
 
-/** Пароль администратора по умолчанию — только для учебного проекта. */
-const DEFAULT_ADMIN_PASSWORD = 'Admin#2026Pvh';
+/**
+ * Пароль администратора по умолчанию — только для учебного проекта:
+ * на защите вход выполняется парой admin / admin (логин admin
+ * подставляет адрес ADMIN_EMAIL, см. src/validators/schemas.js).
+ */
+const DEFAULT_ADMIN_PASSWORD = 'admin';
 
 /**
  * Создаёт администратора, если его ещё нет.

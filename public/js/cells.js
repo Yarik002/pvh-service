@@ -168,7 +168,6 @@ document.addEventListener('DOMContentLoaded', function () {
       Array.prototype.forEach.call(filterButtons, function (other) {
         var active = other === button;
         other.setAttribute('aria-pressed', String(active));
-        other.classList.toggle('btn--secondary', !active);
       });
 
       render();

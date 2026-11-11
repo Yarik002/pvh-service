@@ -203,6 +203,19 @@
       return request('GET', '/cells/suggest?' + params.join('&'));
     },
 
+    /**
+     * «Мои заказы» с фильтрами (16-й день).
+     * @param {string} [query] строка параметров: status, search, sort, order
+     */
+    myOrders: function (query) {
+      return request('GET', '/orders/my' + (query ? '?' + query : ''));
+    },
+
+    /** «Все заказы» с фильтрами (только администратор). */
+    allOrders: function (query) {
+      return request('GET', '/orders' + (query ? '?' + query : ''));
+    },
+
     /** Приёмка заказа в пункт выдачи (только администратор). */
     receiveOrder: function (payload) {
       return request('POST', '/orders', { body: payload });

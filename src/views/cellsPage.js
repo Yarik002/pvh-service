@@ -25,23 +25,29 @@ function renderCellsContent({ isAdmin = false } = {}) {
           данные других клиентов не раскрываются.</p>`;
 
   return `      <div class="page-header">
-        <h1>Ячейки хранения</h1>
-        <p class="page-header__subtitle">
-          Актуальное состояние ячеек на складе пункта выдачи.
-        </p>
+        <div class="page-header__text">
+          <p class="eyebrow">Склад</p>
+          <h1>Ячейки хранения</h1>
+          <p class="page-header__subtitle">
+            Актуальное состояние ячеек на складе пункта выдачи.
+          </p>
+        </div>
       </div>
 
       <div class="grid grid--4" id="cells-stats">
         <div class="stat"><div class="stat__value" id="cells-total">—</div><div class="stat__label">всего ячеек</div></div>
-        <div class="stat"><div class="stat__value" id="cells-free">—</div><div class="stat__label">свободно</div></div>
+        <div class="stat stat--accent"><div class="stat__value" id="cells-free">—</div><div class="stat__label">свободно</div></div>
         <div class="stat"><div class="stat__value" id="cells-busy">—</div><div class="stat__label">занято</div></div>
         <div class="stat"><div class="stat__value" id="cells-occupancy">—</div><div class="stat__label">заполненность</div></div>
       </div>
 
-      <div class="row cells-toolbar" role="group" aria-label="Фильтр ячеек">
-        <button class="btn btn--sm btn--inline" type="button" data-cells-filter="all" aria-pressed="true">Все</button>
-        <button class="btn btn--secondary btn--sm btn--inline" type="button" data-cells-filter="free" aria-pressed="false">Свободные</button>
-        <button class="btn btn--secondary btn--sm btn--inline" type="button" data-cells-filter="busy" aria-pressed="false">Занятые</button>
+      <div class="toolbar cells-toolbar">
+        <div class="segmented" role="group" aria-label="Фильтр ячеек">
+          <button class="segmented__item" type="button" data-cells-filter="all" aria-pressed="true">Все</button>
+          <button class="segmented__item" type="button" data-cells-filter="free" aria-pressed="false">Свободные</button>
+          <button class="segmented__item" type="button" data-cells-filter="busy" aria-pressed="false">Занятые</button>
+        </div>
+        <span class="toolbar__spacer"></span>
         <button class="btn btn--secondary btn--sm btn--inline" type="button" id="cells-refresh">Обновить</button>
       </div>
 
@@ -52,7 +58,7 @@ function renderCellsContent({ isAdmin = false } = {}) {
         <li class="text-muted">Загрузка сведений…</li>
       </ul>
 
-      <div class="card" id="cell-details" hidden>
+      <div class="card cell-details" id="cell-details" hidden>
         <h3 class="card__title" id="cell-details-title">Ячейка</h3>
         <div id="cell-details-body"></div>
       </div>`;
