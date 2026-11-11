@@ -97,10 +97,94 @@ function count() {
   return getDb().prepare('SELECT COUNT(*) AS n FROM Orders').get().n;
 }
 
+/**
+ * Поля сортировки списка и соответствующие им выражения SQL.
+ *
+ * Имя поля из запроса никогда не подставляется в SQL напрямую: берётся
+ * только готовое выражение из этой таблицы, поэтому внедрить свой код
+ * через параметр сортировки невозможно.
+ */
+const SORT_COLUMNS = {
+  receivedAt: 'o.received_at',
+  issuedAt: 'o.issued_at',
+  trackNumber: 'o.track_number',
+  status: "CASE o.status WHEN 'В пути' THEN 1 WHEN 'Готов к выдаче' THEN 2 ELSE 3 END",
+  cell: 'c.cell_number',
+  client: 'u.name COLLATE NOCASE',
+};
+
+/**
+ * Список заказов с фильтрацией и сортировкой (16-й день).
+ *
+ * @param {{
+ *   userId?: number,       только заказы этого клиента («Мои заказы»)
+ *   status?: string,       только заказы с этим статусом
+ *   search?: string,       часть трек-номера, описания, имени или адреса клиента
+ *   sort?: string,         ключ из SORT_COLUMNS
+ *   order?: 'asc'|'desc'   направление сортировки
+ * }} [filters]
+ * @returns {object[]}
+ */
+function findMany({ userId, status, search, sort = 'receivedAt', order = 'desc' } = {}) {
+  const conditions = [];
+  const params = {};
+
+  if (userId !== undefined) {
+    conditions.push('o.user_id = @userId');
+    params.userId = userId;
+  }
+  if (status) {
+    conditions.push('o.status = @status');
+    params.status = status;
+  }
+  if (search) {
+    // Регистр не учитывается и для кириллицы (функция lower_ru, см. connection.js);
+    // знаки % и _ в запросе ищутся как обычные символы
+    conditions.push(`(lower_ru(o.track_number) LIKE @search ESCAPE '\\'
+      OR lower_ru(o.description) LIKE @search ESCAPE '\\'
+      OR lower_ru(u.name) LIKE @search ESCAPE '\\'
+      OR lower_ru(u.email) LIKE @search ESCAPE '\\')`);
+    params.search = `%${String(search).toLowerCase().replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const column = SORT_COLUMNS[sort] || SORT_COLUMNS.receivedAt;
+  const direction = order === 'asc' ? 'ASC' : 'DESC';
+
+  // Пустые значения (заказ «В пути» без даты поступления) всегда в конце
+  // списка, при равенстве — более новый заказ выше
+  const sql = `${SELECT_ORDER}
+    ${where}
+    ORDER BY ${column} IS NULL, ${column} ${direction}, o.id DESC`;
+
+  return getDb().prepare(sql).all(params).map(mapRow);
+}
+
+/**
+ * Количество заказов по статусам — для счётчиков на вкладках фильтра.
+ * @param {{userId?: number}} [filters]
+ * @returns {{all: number, inTransit: number, ready: number, issued: number}}
+ */
+function countByStatus({ userId } = {}) {
+  const where = userId !== undefined ? 'WHERE user_id = @userId' : '';
+  const row = getDb().prepare(
+    `SELECT COUNT(*) AS all_count,
+            COALESCE(SUM(status = 'В пути'), 0)         AS in_transit,
+            COALESCE(SUM(status = 'Готов к выдаче'), 0) AS ready,
+            COALESCE(SUM(status = 'Выдан'), 0)          AS issued
+       FROM Orders ${where}`,
+  ).get(userId !== undefined ? { userId } : {});
+
+  return { all: row.all_count, inTransit: row.in_transit, ready: row.ready, issued: row.issued };
+}
+
 module.exports = {
   findById,
   findByTrackNumber,
   createReceived,
   receiveInTransit,
   count,
+  findMany,
+  countByStatus,
+  SORT_COLUMNS,
 };

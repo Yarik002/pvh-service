@@ -3,11 +3,19 @@
 /**
  * Маршруты заказов: /api/orders
  *
+ *   GET  /api/orders     — «Все заказы» с фильтрами (только администратор);
+ *   GET  /api/orders/my  — «Мои заказы» с фильтрами (текущий пользователь);
  *   POST /api/orders     — приёмка заказа в пункт выдачи (только администратор);
  *   GET  /api/orders/:id — сведения о заказе (администратор — любой заказ,
  *                          клиент — только свой).
  *
- * Списки «Мои заказы» и «Все заказы» с фильтрацией появятся на 16-м дне.
+ * Параметры списков (16-й день), все необязательные:
+ *   status — В пути | Готов к выдаче | Выдан (или transit | ready | issued, all);
+ *   search — часть трек-номера, описания, имени или адреса клиента;
+ *   sort   — receivedAt (по умолчанию) | issuedAt | trackNumber | status | cell
+ *            | client (только «Все заказы»);
+ *   order  — desc (по умолчанию) | asc;
+ *   clientId — заказы одного клиента (только «Все заказы»).
  */
 
 const express = require('express');
@@ -21,6 +29,48 @@ const router = express.Router();
 router.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
+});
+
+/** Ответ со списком заказов: сами заказы, счётчики по статусам и фильтры. */
+function sendList(res, { orders, counts, filters }) {
+  res.status(200).json({
+    success: true,
+    orders,
+    total: orders.length,
+    counts,
+    filters,
+  });
+}
+
+/**
+ * GET /api/orders/my
+ * «Мои заказы»: заказы текущего пользователя с фильтрацией и сортировкой.
+ *
+ * Ответы:
+ *   200 — { orders, total, counts: {all, inTransit, ready, issued}, filters };
+ *   400 — недопустимое значение параметра (код BAD_FILTER);
+ *   401 — пользователь не вошёл в систему.
+ */
+router.get('/my', requireAuth(), (req, res, next) => {
+  try {
+    sendList(res, orderService.listMyOrders(req.query, req.user));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/orders
+ * «Все заказы»: заказы всех клиентов (только администратор).
+ *
+ * Ответы: как у /api/orders/my, плюс 403 для клиента.
+ */
+router.get('/', requireAuth(), requireRole('admin'), (req, res, next) => {
+  try {
+    sendList(res, orderService.listAllOrders(req.query));
+  } catch (error) {
+    next(error);
+  }
 });
 
 /**

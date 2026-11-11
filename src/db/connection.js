@@ -50,6 +50,13 @@ function getDb() {
   db.pragma('busy_timeout = 5000');
   db.pragma('synchronous = NORMAL');
 
+  // Встроенные LOWER и LIKE в SQLite не учитывают регистр только для латиницы:
+  // «книга» и «Книга» для них — разные строки. Функция lower_ru переводит
+  // в нижний регистр любые буквы и используется в поиске заказов (16-й день)
+  db.function('lower_ru', { deterministic: true }, (value) => (
+    value === null || value === undefined ? null : String(value).toLowerCase()
+  ));
+
   return db;
 }
 

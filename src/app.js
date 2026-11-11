@@ -115,6 +115,8 @@ function createApp() {
         cellSuggest: 'GET /api/cells/suggest?mode=auto|manual — выбор ячейки для заказа (администратор)',
         adminOverview: 'GET /api/admin/overview — сводка по ПВЗ (только администратор)',
         adminUsers: 'GET /api/admin/users — список пользователей (только администратор)',
+        myOrders: 'GET /api/orders/my?status=&sort=&order=&search= — «Мои заказы» с фильтрами',
+        allOrders: 'GET /api/orders?status=&sort=&order=&search=&clientId= — «Все заказы» (администратор)',
         receiveOrder: 'POST /api/orders — приёмка заказа в пункт выдачи (только администратор)',
         order: 'GET /api/orders/:id — сведения о заказе',
       },
@@ -123,7 +125,6 @@ function createApp() {
         templateDemo: 'GET /template-demo — страница проверки шаблона',
       },
       planned: [
-        'GET /api/orders/my — список заказов клиента (16-й день)',
         'POST /api/orders/:id/issue — выдача заказа (18-й день)',
       ],
       timestamp: new Date().toISOString(),

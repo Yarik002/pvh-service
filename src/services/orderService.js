@@ -255,10 +255,119 @@ function getOrderForUser(id, user) {
   return order;
 }
 
+// ---------------------------------------------------------------------------
+//  Списки заказов (16-й день): «Мои заказы» и «Все заказы»
+// ---------------------------------------------------------------------------
+
+/** Статусы заказа в порядке жизненного цикла. */
+const ORDER_STATUSES = ['В пути', 'Готов к выдаче', 'Выдан'];
+
+/**
+ * Короткие латинские обозначения статусов: их удобно передавать в адресе
+ * (?status=ready), не кодируя кириллицу.
+ */
+const STATUS_ALIASES = {
+  transit: 'В пути',
+  ready: 'Готов к выдаче',
+  issued: 'Выдан',
+};
+
+/** Направления сортировки. */
+const SORT_ORDERS = ['asc', 'desc'];
+
+/** Ошибка параметра списка: 400 с указанием параметра в details. */
+function badFilter(field, message) {
+  return new AppError(message, 400, 'BAD_FILTER', { [field]: { code: 'BAD_FILTER', message } });
+}
+
+/**
+ * Проверяет и приводит к единому виду параметры списка из строки запроса.
+ *
+ * @param {object} query req.query
+ * @param {{allowClientSort?: boolean}} [options] сортировка по клиенту есть
+ *        только в списке «Все заказы»
+ * @returns {{status: string|null, search: string, sort: string, order: string}}
+ * @throws {AppError} 400 BAD_FILTER — недопустимое значение параметра
+ */
+function parseListQuery(query = {}, { allowClientSort = false } = {}) {
+  // Статус: русское название, латинское обозначение или all / пусто — все заказы
+  const rawStatus = String(query.status ?? '').trim();
+  let status = null;
+  if (rawStatus !== '' && rawStatus.toLowerCase() !== 'all') {
+    status = STATUS_ALIASES[rawStatus.toLowerCase()]
+      || ORDER_STATUSES.find((item) => item.toLowerCase() === rawStatus.toLowerCase())
+      || null;
+    if (!status) {
+      throw badFilter('status', 'Недопустимый статус. Допустимые значения: '
+        + `${ORDER_STATUSES.join(', ')} (или ${Object.keys(STATUS_ALIASES).join(', ')}, all)`);
+    }
+  }
+
+  const search = String(query.search ?? query.q ?? '').trim();
+  if ([...search].length > 100) {
+    throw badFilter('search', 'Строка поиска должна содержать не более 100 символов');
+  }
+
+  const sortKeys = Object.keys(orderRepository.SORT_COLUMNS)
+    .filter((key) => allowClientSort || key !== 'client');
+  const sort = String(query.sort ?? '').trim() || 'receivedAt';
+  if (!sortKeys.includes(sort)) {
+    throw badFilter('sort', `Недопустимое поле сортировки. Допустимые значения: ${sortKeys.join(', ')}`);
+  }
+
+  const order = String(query.order ?? '').trim().toLowerCase() || 'desc';
+  if (!SORT_ORDERS.includes(order)) {
+    throw badFilter('order', 'Направление сортировки: asc (по возрастанию) или desc (по убыванию)');
+  }
+
+  return { status, search, sort, order };
+}
+
+/**
+ * Список «Мои заказы»: только заказы текущего пользователя.
+ * @param {object} query параметры из строки запроса
+ * @param {{id: number}} user
+ */
+function listMyOrders(query, user) {
+  const filters = parseListQuery(query);
+  return {
+    orders: orderRepository.findMany({ ...filters, userId: user.id }),
+    counts: orderRepository.countByStatus({ userId: user.id }),
+    filters,
+  };
+}
+
+/**
+ * Список «Все заказы» (администратор). Дополнительно можно отобрать
+ * заказы одного клиента параметром clientId.
+ * @param {object} query параметры из строки запроса
+ */
+function listAllOrders(query = {}) {
+  const filters = parseListQuery(query, { allowClientSort: true });
+
+  let userId;
+  if (query.clientId !== undefined && String(query.clientId).trim() !== '') {
+    const text = String(query.clientId).trim();
+    userId = /^\d+$/.test(text) ? Number.parseInt(text, 10) : 0;
+    if (!userId) throw badFilter('clientId', 'Идентификатор клиента должен быть целым положительным числом');
+  }
+
+  return {
+    orders: orderRepository.findMany({ ...filters, userId }),
+    counts: orderRepository.countByStatus({ userId }),
+    filters: { ...filters, clientId: userId ?? null },
+  };
+}
+
 module.exports = {
   receiveOrder,
   resolveClient,
   parseOrderId,
   getOrderForUser,
+  parseListQuery,
+  listMyOrders,
+  listAllOrders,
   ORDER_ERRORS,
+  ORDER_STATUSES,
+  STATUS_ALIASES,
 };
